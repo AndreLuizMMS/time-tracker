@@ -376,6 +376,11 @@ export default function App() {
     return () => clearInterval(tickRef.current)
   }, [timerActive, timerStart])
 
+  useEffect(() => {
+    document.title = timerActive ? `${fmtDur(timerElapsed)} • Time Tracker` : 'Time Tracker'
+    return () => { document.title = 'Time Tracker' }
+  }, [timerActive, timerElapsed])
+
   const startTimer = () => {
     const s = Date.now()
     setTimerStart(s)
