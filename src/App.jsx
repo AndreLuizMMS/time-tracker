@@ -1,8 +1,10 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, forwardRef } from 'react'
 import styles from './App.module.css'
 
 const PROJECTS = ['Geral', 'Design', 'Desenvolvimento', 'Reunião', 'Pesquisa']
 const PROJ_COLORS = ['#1D9E75', '#378ADD', '#D4537E', '#BA7517', '#7F77DD']
+const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -19,6 +21,19 @@ function fmtHM(secs) {
   if (h === 0) return `${m}min`
   if (m === 0) return `${h}h`
   return `${h}h ${m}min`
+}
+
+function fmtHoursDec(secs) {
+  const h = Math.round((secs / 3600) * 100) / 100
+  return `${h}h`
+}
+
+function fmtMinutes(secs) {
+  return `${Math.round(secs / 60)}min`
+}
+
+function fmtSummary(secs, unit) {
+  return unit === 'min' ? fmtMinutes(secs) : fmtHoursDec(secs)
 }
 
 function timeToSecs(t) {
@@ -63,32 +78,35 @@ function saveStorage(key, value) {
 
 // ─── Components ─────────────────────────────────────────────────────────────
 
-function StatCard({ label, value }) {
+function StatCard({ label, value, icon, primary }) {
   return (
-    <div className={styles.statCard}>
-      <div className={styles.statLabel}>{label}</div>
+    <div className={`${styles.statCard} ${primary ? styles.statCardPrimary : ''}`}>
+      <div className={styles.statLabel}>
+        <i className={`ti ${icon}`} aria-hidden="true" />
+        {label}
+      </div>
       <div className={styles.statValue}>{value}</div>
     </div>
   )
 }
 
-function EntryRow({ entry, onEdit, onDelete }) {
+function EntryRow({ entry, onEdit, onDelete, unit }) {
   return (
     <div
       className={styles.entryRow}
+      style={{ '--entry-accent': PROJ_COLORS[entry.proj] }}
       onClick={() => onEdit(entry)}
       role="button"
       tabIndex={0}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onEdit(entry) } }}
     >
-      <span
-        className={styles.entryDot}
-        style={{ background: PROJ_COLORS[entry.proj] }}
-      />
       <span className={styles.entryDesc}>{entry.desc}</span>
-      <span className={styles.entryProj}>{PROJECTS[entry.proj]}</span>
+      <span className={styles.entryProj}>
+        <span className={styles.entryProjDot} aria-hidden="true" />
+        {PROJECTS[entry.proj]}
+      </span>
       <span className={styles.entryRange}>{entry.start} – {entry.end}</span>
-      <span className={styles.entryDur}>{fmtHM(entry.dur)}</span>
+      <span className={styles.entryDur}>{fmtSummary(entry.dur, unit)}</span>
       <button
         className={styles.btnDel}
         onClick={e => { e.stopPropagation(); onDelete(entry.id) }}
@@ -96,6 +114,222 @@ function EntryRow({ entry, onEdit, onDelete }) {
       >
         <i className="ti ti-trash" aria-hidden="true" />
       </button>
+    </div>
+  )
+}
+
+// ─── Field pickers (presentational — value string in, value string out) ───────
+
+function useDismiss(open, setOpen, ref) {
+  useEffect(() => {
+    if (!open) return
+    const onDoc = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    const onKey = e => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', onDoc)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDoc)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open, setOpen, ref])
+}
+
+const pad2 = n => String(n).padStart(2, '0')
+
+const TimeField = forwardRef(function TimeField({ value, onChange, onComplete }, inputRef) {
+  const [open, setOpen] = useState(false)
+  const [draft, setDraft] = useState(value)
+  const ref = useRef(null)
+  const popRef = useRef(null)
+  useDismiss(open, setOpen, ref)
+
+  // mantém o que se digita em sincronia com o valor normalizado externo
+  useEffect(() => { setDraft(value) }, [value])
+
+  const [h, m] = value.split(':')
+  const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))
+  const mins = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'))
+
+  // centra o valor atual ao abrir
+  useEffect(() => {
+    if (!open || !popRef.current) return
+    popRef.current.querySelectorAll(`.${styles.timeOptActive}`).forEach(el =>
+      el.scrollIntoView({ block: 'center' })
+    )
+  }, [open])
+
+  // digitação com máscara: "0930" → "09:30", propaga só quando completo/válido
+  const handleType = e => {
+    const d = e.target.value.replace(/\D/g, '').slice(0, 4)
+    setDraft(d.length > 2 ? `${d.slice(0, 2)}:${d.slice(2)}` : d)
+    if (d.length === 4) {
+      const hh = Math.min(23, parseInt(d.slice(0, 2), 10))
+      const mm = Math.min(59, parseInt(d.slice(2, 4), 10))
+      onChange(`${pad2(hh)}:${pad2(mm)}`)
+      onComplete?.()
+    }
+  }
+
+  const handleBlur = () => {
+    const d = draft.replace(/\D/g, '')
+    if (!d) { setDraft(value); return }
+    const hh = Math.min(23, parseInt(d.slice(0, 2) || '0', 10))
+    const mm = Math.min(59, parseInt(d.slice(2, 4) || '0', 10))
+    const v = `${pad2(hh)}:${pad2(mm)}`
+    onChange(v)
+    setDraft(v)
+  }
+
+  return (
+    <div className={styles.field} ref={ref}>
+      <div className={`${styles.fieldTrigger} ${open ? styles.fieldTriggerOpen : ''}`}>
+        <i className="ti ti-clock-hour-4" aria-hidden="true" />
+        <input
+          ref={inputRef}
+          className={styles.timeTextInput}
+          value={draft}
+          onChange={handleType}
+          onBlur={handleBlur}
+          onFocus={e => e.target.select()}
+          inputMode="numeric"
+          placeholder="--:--"
+          maxLength={5}
+          aria-label="Hora (HH:MM)"
+        />
+        <button
+          type="button"
+          className={styles.fieldChevronBtn}
+          onClick={() => setOpen(o => !o)}
+          aria-label="Escolher hora"
+          aria-haspopup="dialog"
+          aria-expanded={open}
+        >
+          <i className={`ti ti-chevron-down ${styles.fieldChevron}`} aria-hidden="true" />
+        </button>
+      </div>
+      {open && (
+        <div className={styles.timePopover} role="dialog" ref={popRef}>
+          <div className={styles.timeCol}>
+            <div className={styles.timeColLabel}>Hora</div>
+            <div className={styles.timeColScroll}>
+              {hours.map(hh => (
+                <button
+                  type="button"
+                  key={hh}
+                  className={`${styles.timeOpt} ${hh === h ? styles.timeOptActive : ''}`}
+                  onClick={() => onChange(`${hh}:${m}`)}
+                >
+                  {hh}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className={styles.timeDivider} aria-hidden="true" />
+          <div className={styles.timeCol}>
+            <div className={styles.timeColLabel}>Min</div>
+            <div className={styles.timeColScroll}>
+              {mins.map(mm => (
+                <button
+                  type="button"
+                  key={mm}
+                  className={`${styles.timeOpt} ${mm === m ? styles.timeOptActive : ''}`}
+                  onClick={() => onChange(`${h}:${mm}`)}
+                >
+                  {mm}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+})
+
+function DateField({ value, onChange }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  useDismiss(open, setOpen, ref)
+
+  const selected = new Date(value + 'T12:00:00')
+  const [view, setView] = useState(() => new Date(selected.getFullYear(), selected.getMonth(), 1))
+
+  useEffect(() => {
+    if (open) setView(new Date(selected.getFullYear(), selected.getMonth(), 1))
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const y = view.getFullYear()
+  const mo = view.getMonth()
+  const firstWeekday = new Date(y, mo, 1).getDay()
+  const daysInMonth = new Date(y, mo + 1, 0).getDate()
+  const today = todayStr()
+
+  const cells = []
+  for (let i = 0; i < firstWeekday; i++) cells.push(null)
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d)
+
+  const dayStr = d => `${y}-${String(mo + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+  const label = selected.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+
+  return (
+    <div className={styles.field} ref={ref}>
+      <button
+        type="button"
+        className={`${styles.fieldTrigger} ${open ? styles.fieldTriggerOpen : ''}`}
+        onClick={() => setOpen(o => !o)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+      >
+        <i className="ti ti-calendar-event" aria-hidden="true" />
+        <span className={styles.fieldValue}>{label}</span>
+        <i className={`ti ti-chevron-down ${styles.fieldChevron}`} aria-hidden="true" />
+      </button>
+      {open && (
+        <div className={styles.calPopover} role="dialog">
+          <div className={styles.calHeader}>
+            <button
+              type="button"
+              className={styles.calNav}
+              onClick={() => setView(new Date(y, mo - 1, 1))}
+              aria-label="Mês anterior"
+            >
+              <i className="ti ti-chevron-left" aria-hidden="true" />
+            </button>
+            <span className={styles.calTitle}>{MONTHS[mo]} {y}</span>
+            <button
+              type="button"
+              className={styles.calNav}
+              onClick={() => setView(new Date(y, mo + 1, 1))}
+              aria-label="Próximo mês"
+            >
+              <i className="ti ti-chevron-right" aria-hidden="true" />
+            </button>
+          </div>
+          <div className={styles.calWeekdays}>
+            {WEEKDAYS.map((w, i) => (
+              <span key={i} className={styles.calWeekday}>{w.charAt(0)}</span>
+            ))}
+          </div>
+          <div className={styles.calGrid}>
+            {cells.map((d, i) => {
+              if (d === null) return <span key={`e${i}`} />
+              const ds = dayStr(d)
+              const isSel = ds === value
+              const isToday = ds === today
+              return (
+                <button
+                  type="button"
+                  key={ds}
+                  className={`${styles.calDay} ${isSel ? styles.calDaySel : ''} ${isToday && !isSel ? styles.calDayToday : ''}`}
+                  onClick={() => { onChange(ds); setOpen(false) }}
+                >
+                  {d}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -109,6 +343,9 @@ export default function App() {
   useEffect(() => {
     saveStorage('tt_entries', entries)
   }, [entries])
+
+  // Summary unit (h | min) — sempre carrega em horas por padrão
+  const [summaryUnit, setSummaryUnit] = useState('h')
 
   // Timer
   const [timerActive, setTimerActive] = useState(false)
@@ -178,6 +415,7 @@ export default function App() {
   const [mProj, setMProj] = useState(0)
   const [mErr, setMErr] = useState('')
   const [editingId, setEditingId] = useState(null)
+  const endRef = useRef(null)
 
   const resetManual = () => {
     setMDesc('')
@@ -251,7 +489,9 @@ export default function App() {
       <header className={styles.header}>
         <div className={styles.headerInner}>
           <div className={styles.logo}>
-            <i className="ti ti-clock-play" aria-hidden="true" />
+            <span className={styles.logoMark}>
+              <i className="ti ti-clock-play" aria-hidden="true" />
+            </span>
             <span>Time Tracker</span>
           </div>
         </div>
@@ -259,15 +499,36 @@ export default function App() {
 
       <main className={styles.main}>
         {/* Stats */}
+        <div className={styles.summaryHeader}>
+          <span className={styles.sectionLabel} style={{ margin: 0 }}>Resumo</span>
+          <div className={styles.unitToggle} role="group" aria-label="Unidade do resumo">
+            <button
+              type="button"
+              className={`${styles.unitOpt} ${summaryUnit === 'h' ? styles.unitOptActive : ''}`}
+              onClick={() => setSummaryUnit('h')}
+              aria-pressed={summaryUnit === 'h'}
+            >
+              Horas
+            </button>
+            <button
+              type="button"
+              className={`${styles.unitOpt} ${summaryUnit === 'min' ? styles.unitOptActive : ''}`}
+              onClick={() => setSummaryUnit('min')}
+              aria-pressed={summaryUnit === 'min'}
+            >
+              Minutos
+            </button>
+          </div>
+        </div>
         <div className={styles.statsGrid}>
-          <StatCard label="Hoje" value={fmtHM(timerActive ? todayTotal + timerElapsed : todayTotal)} />
-          <StatCard label="Esta semana" value={fmtHM(weekTotal)} />
-          <StatCard label="Total geral" value={fmtHM(totalAll)} />
+          <StatCard label="Hoje" icon="ti-calendar-event" primary value={fmtSummary(timerActive ? todayTotal + timerElapsed : todayTotal, summaryUnit)} />
+          <StatCard label="Semana" icon="ti-calendar-week" value={fmtSummary(weekTotal, summaryUnit)} />
+          <StatCard label="Total" icon="ti-sum" value={fmtSummary(totalAll, summaryUnit)} />
         </div>
 
-        {/* Timer */}
-        <div className={styles.card}>
-          <div className={styles.timerRow}>
+        {/* Timer hero */}
+        <div className={`${styles.timerCard} ${timerActive ? styles.timerCardActive : ''}`}>
+          <div className={styles.timerInputs}>
             <input
               className={styles.timerInput}
               placeholder="O que você está trabalhando?"
@@ -275,23 +536,32 @@ export default function App() {
               onChange={e => setTimerDesc(e.target.value)}
               disabled={timerActive}
             />
-            <select
-              className={styles.projSelect}
-              value={timerProj}
-              onChange={e => setTimerProj(parseInt(e.target.value))}
-              disabled={timerActive}
-            >
-              {PROJECTS.map((p, i) => (
-                <option key={i} value={i}>{p}</option>
-              ))}
-            </select>
-            <span className={`${styles.timerDisplay} ${timerActive ? styles.timerActive : ''}`}>
-              {fmtDur(timerElapsed)}
-            </span>
+            <div className={styles.selectWrap}>
+              <select
+                className={styles.projSelect}
+                value={timerProj}
+                onChange={e => setTimerProj(parseInt(e.target.value))}
+                disabled={timerActive}
+              >
+                {PROJECTS.map((p, i) => (
+                  <option key={i} value={i}>{p}</option>
+                ))}
+              </select>
+              <i className={`ti ti-chevron-down ${styles.selectIcon}`} aria-hidden="true" />
+            </div>
+          </div>
+          <div className={styles.timerHero}>
+            <div className={styles.timerReadout}>
+              {timerActive && <span className={styles.pulseDot} aria-hidden="true" />}
+              <span className={`${styles.timerDisplay} ${timerActive ? styles.timerActive : ''}`}>
+                {fmtDur(timerElapsed)}
+              </span>
+            </div>
             <button
-              className={`${styles.btnPrimary} ${timerActive ? styles.btnStop : ''}`}
+              className={`${styles.btnPrimary} ${styles.btnTimer} ${timerActive ? styles.btnStop : ''}`}
               onClick={timerActive ? stopTimer : startTimer}
             >
+              <i className={`ti ${timerActive ? 'ti-player-stop-filled' : 'ti-player-play-filled'}`} aria-hidden="true" />
               {timerActive ? 'Parar' : 'Iniciar'}
             </button>
           </div>
@@ -312,49 +582,37 @@ export default function App() {
 
         {/* Manual entry form */}
         {showManual && (
-          <div className={styles.card}>
+          <form className={styles.card} onSubmit={e => { e.preventDefault(); saveManual() }}>
             <div className={styles.sectionLabel} style={{ marginTop: 0 }}>
               {editingId !== null ? 'Editar entrada' : 'Nova entrada'}
             </div>
             <div className={styles.manualGrid}>
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Data</label>
-                <input
-                  className={styles.formInput}
-                  type="date"
-                  value={mDate}
-                  onChange={e => setMDate(e.target.value)}
-                />
+                <DateField value={mDate} onChange={setMDate} />
               </div>
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Projeto</label>
-                <select
-                  className={styles.formInput}
-                  value={mProj}
-                  onChange={e => setMProj(e.target.value)}
-                >
-                  {PROJECTS.map((p, i) => (
-                    <option key={i} value={i}>{p}</option>
-                  ))}
-                </select>
+                <div className={styles.selectWrap}>
+                  <select
+                    className={styles.formSelect}
+                    value={mProj}
+                    onChange={e => setMProj(e.target.value)}
+                  >
+                    {PROJECTS.map((p, i) => (
+                      <option key={i} value={i}>{p}</option>
+                    ))}
+                  </select>
+                  <i className={`ti ti-chevron-down ${styles.selectIcon}`} aria-hidden="true" />
+                </div>
               </div>
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Início</label>
-                <input
-                  className={styles.formInput}
-                  type="time"
-                  value={mStart}
-                  onChange={e => setMStart(e.target.value)}
-                />
+                <TimeField value={mStart} onChange={setMStart} onComplete={() => endRef.current?.focus()} />
               </div>
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Fim</label>
-                <input
-                  className={styles.formInput}
-                  type="time"
-                  value={mEnd}
-                  onChange={e => setMEnd(e.target.value)}
-                />
+                <TimeField ref={endRef} value={mEnd} onChange={setMEnd} />
               </div>
             </div>
             <div className={styles.formGroup} style={{ marginBottom: '12px' }}>
@@ -367,25 +625,36 @@ export default function App() {
               />
             </div>
             <div className={styles.manualFooter}>
-              {mErr && <span className={styles.formErr}>{mErr}</span>}
+              {mErr && (
+                <span className={styles.formErr}>
+                  <i className="ti ti-alert-circle" aria-hidden="true" />
+                  {mErr}
+                </span>
+              )}
               <button
-                className={styles.btnCancel}
+                type="button"
+                className={styles.btnSecondary}
                 onClick={() => { resetManual(); setShowManual(false) }}
               >
                 Cancelar
               </button>
-              <button className={styles.btnPrimary} onClick={saveManual}>
+              <button type="submit" className={styles.btnPrimary}>
                 {editingId !== null ? 'Salvar' : 'Adicionar'}
               </button>
             </div>
-          </div>
+          </form>
         )}
 
         {/* Entries */}
         {sortedDays.length === 0 ? (
           <div className={styles.empty}>
-            <i className="ti ti-clock" style={{ fontSize: '32px', display: 'block', marginBottom: '8px' }} aria-hidden="true" />
-            Nenhuma entrada ainda.<br />Inicie o timer ou adicione um horário manual.
+            <span className={styles.emptyIcon}>
+              <i className="ti ti-clock-hour-3" aria-hidden="true" />
+            </span>
+            <div className={styles.emptyTitle}>Nenhuma entrada ainda</div>
+            <p className={styles.emptyText}>
+              Inicie o timer acima ou adicione um horário manual para começar a registrar seu tempo.
+            </p>
           </div>
         ) : (
           <div>
@@ -394,10 +663,10 @@ export default function App() {
               <div className={styles.dayGroup} key={day}>
                 <div className={styles.dayHeader}>
                   <span className={styles.dayName}>{fmtDate(day)}</span>
-                  <span className={styles.dayTotal}>{fmtHM(grouped[day].reduce((s, e) => s + e.dur, 0))}</span>
+                  <span className={styles.dayTotal}>{fmtSummary(grouped[day].reduce((s, e) => s + e.dur, 0), summaryUnit)}</span>
                 </div>
                 {grouped[day].map(entry => (
-                  <EntryRow key={entry.id} entry={entry} onEdit={startEdit} onDelete={deleteEntry} />
+                  <EntryRow key={entry.id} entry={entry} onEdit={startEdit} onDelete={deleteEntry} unit={summaryUnit} />
                 ))}
               </div>
             ))}
