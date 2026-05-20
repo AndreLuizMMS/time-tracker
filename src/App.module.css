@@ -1,0 +1,440 @@
+.layout {
+  min-height: 100vh;
+  background: var(--color-bg);
+}
+
+/* Header */
+.header {
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.headerInner {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  height: 56px;
+  display: flex;
+  align-items: center;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.logo i {
+  font-size: 20px;
+  color: var(--color-teal);
+}
+
+/* Main */
+.main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+/* Stats */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 1.5rem;
+}
+
+.statCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.125rem;
+}
+
+.statLabel {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--color-text-tertiary);
+  margin-bottom: 4px;
+}
+
+.statValue {
+  font-size: 22px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+}
+
+/* Card */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+/* Timer */
+.timerRow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.timerInput {
+  flex: 1;
+  height: 42px;
+  padding: 0 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-secondary);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  outline: none;
+  transition: border-color .15s;
+}
+
+.timerInput:focus {
+  border-color: var(--color-teal);
+}
+
+.timerInput:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+.projSelect {
+  height: 42px;
+  padding: 0 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-secondary);
+  color: var(--color-text-primary);
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+  min-width: 130px;
+  transition: border-color .15s;
+}
+
+.projSelect:focus {
+  border-color: var(--color-teal);
+}
+
+.projSelect:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+.timerDisplay {
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  min-width: 76px;
+  text-align: center;
+  color: var(--color-text-secondary);
+  letter-spacing: .04em;
+}
+
+.timerActive {
+  color: var(--color-teal);
+}
+
+/* Buttons */
+.btnPrimary {
+  height: 42px;
+  padding: 0 20px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: var(--color-teal);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background .15s, transform .1s;
+}
+
+.btnPrimary:hover {
+  background: var(--color-teal-hover);
+}
+
+.btnPrimary:active {
+  transform: scale(.98);
+}
+
+.btnStop {
+  background: var(--color-red);
+}
+
+.btnStop:hover {
+  background: var(--color-red-hover);
+}
+
+.btnCancel {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  transition: background .15s;
+}
+
+.btnCancel:hover {
+  background: var(--color-surface-secondary);
+}
+
+/* Manual toggle */
+.manualToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: none;
+  margin-bottom: 1rem;
+  padding: .25rem 0;
+}
+
+.manualToggle:hover {
+  color: var(--color-text-primary);
+}
+
+.manualToggle i {
+  font-size: 14px;
+}
+
+.chevron {
+  transition: transform .2s;
+}
+
+.manualToggleOpen .chevron {
+  transform: rotate(180deg);
+}
+
+/* Manual form */
+.manualGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.formLabel {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--color-text-tertiary);
+}
+
+.formInput {
+  height: 38px;
+  padding: 0 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-secondary);
+  color: var(--color-text-primary);
+  font-size: 13px;
+  outline: none;
+  transition: border-color .15s;
+}
+
+.formInput:focus {
+  border-color: var(--color-teal);
+}
+
+.manualFooter {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.formErr {
+  font-size: 12px;
+  color: var(--color-red);
+  flex: 1;
+}
+
+/* Entries */
+.sectionLabel {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--color-text-tertiary);
+  margin-bottom: .75rem;
+  margin-top: .5rem;
+}
+
+.dayGroup {
+  margin-bottom: 1.5rem;
+}
+
+.dayHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: .5rem;
+  padding-bottom: .5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dayName {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  text-transform: capitalize;
+}
+
+.dayTotal {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.entryRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: .65rem .875rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: border-color .15s;
+}
+
+.entryRow:hover {
+  border-color: var(--color-border-strong);
+}
+
+.entryDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.entryDesc {
+  flex: 1;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.entryProj {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  background: var(--color-surface-secondary);
+  padding: 2px 8px;
+  border-radius: 50px;
+  flex-shrink: 0;
+  border: 1px solid var(--color-border);
+}
+
+.entryRange {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  min-width: 104px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.entryDur {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  min-width: 48px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.btnDel {
+  background: transparent;
+  border: none;
+  color: var(--color-text-tertiary);
+  padding: 2px 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: color .15s;
+  flex-shrink: 0;
+}
+
+.btnDel:hover {
+  color: var(--color-red);
+}
+
+.btnDel i {
+  font-size: 15px;
+}
+
+/* Empty */
+.empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.empty i {
+  color: var(--color-text-tertiary);
+}
+
+/* Responsive */
+@media (max-width: 520px) {
+  .timerRow {
+    flex-wrap: wrap;
+  }
+
+  .timerInput {
+    width: 100%;
+    flex: unset;
+  }
+
+  .projSelect {
+    flex: 1;
+  }
+
+  .statsGrid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  .statValue {
+    font-size: 18px;
+  }
+
+  .manualGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .entryRange {
+    display: none;
+  }
+}
