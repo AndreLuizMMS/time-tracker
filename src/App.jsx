@@ -90,7 +90,18 @@ function StatCard({ label, value, icon, primary }) {
   )
 }
 
-function EntryRow({ entry, onEdit, onDelete, unit }) {
+function EntryRow({ entry, onEdit, onDelete, onResume, onCopy }) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = async e => {
+    e.stopPropagation()
+    const ok = await onCopy(entry)
+    if (ok) {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1400)
+    }
+  }
+
   return (
     <div
       className={styles.entryRow}
@@ -106,14 +117,32 @@ function EntryRow({ entry, onEdit, onDelete, unit }) {
         {PROJECTS[entry.proj]}
       </span>
       <span className={styles.entryRange}>{entry.start} – {entry.end}</span>
-      <span className={styles.entryDur}>{fmtSummary(entry.dur, unit)}</span>
-      <button
-        className={styles.btnDel}
-        onClick={e => { e.stopPropagation(); onDelete(entry.id) }}
-        aria-label="Remover entrada"
-      >
-        <i className="ti ti-trash" aria-hidden="true" />
-      </button>
+      <span className={styles.entryDur}>{fmtHoursDec(entry.dur)}</span>
+      <div className={styles.entryActions}>
+        <button
+          className={styles.btnAction}
+          onClick={e => { e.stopPropagation(); onResume(entry) }}
+          aria-label="Retomar timer desta entrada"
+          title="Retomar timer"
+        >
+          <i className="ti ti-player-play-filled" aria-hidden="true" />
+        </button>
+        <button
+          className={`${styles.btnAction} ${copied ? styles.btnActionOk : ''}`}
+          onClick={handleCopy}
+          aria-label="Copiar horas desta entrada"
+          title={copied ? 'Copiado' : 'Copiar horas'}
+        >
+          <i className={`ti ${copied ? 'ti-check' : 'ti-copy'}`} aria-hidden="true" />
+        </button>
+        <button
+          className={styles.btnDel}
+          onClick={e => { e.stopPropagation(); onDelete(entry.id) }}
+          aria-label="Remover entrada"
+        >
+          <i className="ti ti-trash" aria-hidden="true" />
+        </button>
+      </div>
     </div>
   )
 }
@@ -344,16 +373,25 @@ export default function App() {
     saveStorage('tt_entries', entries)
   }, [entries])
 
-  // Summary unit (h | min) — sempre carrega em horas por padrão
-  const [summaryUnit, setSummaryUnit] = useState('h')
-
   // Timer
   const [timerActive, setTimerActive] = useState(false)
   const [timerStart, setTimerStart] = useState(null)
   const [timerElapsed, setTimerElapsed] = useState(0)
   const [timerDesc, setTimerDesc] = useState('')
   const [timerProj, setTimerProj] = useState(0)
+  const [timerResumeId, setTimerResumeId] = useState(null)
   const tickRef = useRef(null)
+
+  const persistTimer = patch => {
+    saveStorage('tt_timer', {
+      active: true,
+      start: timerStart,
+      desc: timerDesc,
+      proj: timerProj,
+      resumeId: timerResumeId,
+      ...patch,
+    })
+  }
 
   useEffect(() => {
     const saved = loadStorage('tt_timer', null)
@@ -362,6 +400,7 @@ export default function App() {
       setTimerStart(saved.start)
       setTimerDesc(saved.desc || '')
       setTimerProj(saved.proj || 0)
+      setTimerResumeId(saved.resumeId ?? null)
     }
   }, [])
 
@@ -386,7 +425,7 @@ export default function App() {
     setTimerStart(s)
     setTimerActive(true)
     setTimerElapsed(0)
-    saveStorage('tt_timer', { active: true, start: s, desc: timerDesc, proj: timerProj })
+    saveStorage('tt_timer', { active: true, start: s, desc: timerDesc, proj: timerProj, resumeId: null })
   }
 
   const stopTimer = () => {
@@ -395,20 +434,64 @@ export default function App() {
     const endSecs = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds()
     const startSecs = endSecs - timerElapsed
     const dateStr = now.toISOString().split('T')[0]
-    const entry = {
-      id: Date.now(),
-      date: dateStr,
-      desc: timerDesc || 'Sem descrição',
-      proj: timerProj,
-      start: secsToTime(Math.max(0, startSecs)),
-      end: secsToTime(endSecs),
-      dur: timerElapsed,
+    if (timerResumeId !== null) {
+      // retomada: estende a entrada original em vez de criar nova
+      setEntries(prev => prev.map(x => {
+        if (x.id !== timerResumeId) return x
+        const end = secsToTime(timeToSecs(x.start) + timerElapsed)
+        return { ...x, desc: timerDesc || 'Sem descrição', proj: timerProj, end, dur: timerElapsed }
+      }))
+    } else {
+      const entry = {
+        id: Date.now(),
+        date: dateStr,
+        desc: timerDesc || 'Sem descrição',
+        proj: timerProj,
+        start: secsToTime(Math.max(0, startSecs)),
+        end: secsToTime(endSecs),
+        dur: timerElapsed,
+      }
+      setEntries(e => [entry, ...e])
     }
-    setEntries(e => [entry, ...e])
     setTimerActive(false)
     setTimerElapsed(0)
     setTimerDesc('')
+    setTimerResumeId(null)
     saveStorage('tt_timer', { active: false })
+  }
+
+  // retoma o timer a partir de uma entrada salva, continuando da duração registrada
+  const resumeEntry = entry => {
+    if (timerActive) return
+    const s = Date.now() - entry.dur * 1000
+    setTimerDesc(entry.desc === 'Sem descrição' ? '' : entry.desc)
+    setTimerProj(entry.proj)
+    setTimerResumeId(entry.id)
+    setTimerStart(s)
+    setTimerElapsed(entry.dur)
+    setTimerActive(true)
+    saveStorage('tt_timer', { active: true, start: s, desc: entry.desc, proj: entry.proj, resumeId: entry.id })
+  }
+
+  // ajusta manualmente a hora de início de um timer ativo
+  const setTimerStartTime = hhmm => {
+    const [h, m] = hhmm.split(':').map(Number)
+    const d = new Date(timerStart ?? Date.now())
+    d.setHours(h, m, 0, 0)
+    let s = d.getTime()
+    if (s > Date.now()) s -= 86400000 // início no futuro → assume dia anterior
+    setTimerStart(s)
+    setTimerElapsed(Math.floor((Date.now() - s) / 1000))
+    persistTimer({ start: s })
+  }
+
+  const copyEntryHours = async entry => {
+    try {
+      await navigator.clipboard.writeText(fmtHoursDec(entry.dur))
+      return true
+    } catch {
+      return false
+    }
   }
 
   // Manual entry
@@ -668,10 +751,17 @@ export default function App() {
               <div className={styles.dayGroup} key={day}>
                 <div className={styles.dayHeader}>
                   <span className={styles.dayName}>{fmtDate(day)}</span>
-                  <span className={styles.dayTotal}>{fmtSummary(grouped[day].reduce((s, e) => s + e.dur, 0), summaryUnit)}</span>
+                  <span className={styles.dayTotal}>{fmtHoursDec(grouped[day].reduce((s, e) => s + e.dur, 0))}</span>
                 </div>
                 {grouped[day].map(entry => (
-                  <EntryRow key={entry.id} entry={entry} onEdit={startEdit} onDelete={deleteEntry} unit={summaryUnit} />
+                  <EntryRow
+                    key={entry.id}
+                    entry={entry}
+                    onEdit={startEdit}
+                    onDelete={deleteEntry}
+                    onResume={resumeEntry}
+                    onCopy={copyEntryHours}
+                  />
                 ))}
               </div>
             ))}
