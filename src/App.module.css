@@ -544,7 +544,7 @@
 .timeCol {
   display: flex;
   flex-direction: column;
-  width: 64px;
+  width: 84px;
 }
 
 .timeColLabel {
@@ -562,28 +562,51 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  height: 184px;
+  height: 252px;
   overflow-y: auto;
   scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
   scroll-behavior: smooth;
+  scroll-snap-type: y proximity;
+  overscroll-behavior: contain;
   padding-right: 4px;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 18px,
+    #000 calc(100% - 18px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 18px,
+    #000 calc(100% - 18px),
+    transparent 100%
+  );
 }
 
-.timeColScroll::-webkit-scrollbar { width: 6px; }
+.timeColScroll::-webkit-scrollbar { width: 5px; }
+.timeColScroll::-webkit-scrollbar-track { background: transparent; }
 .timeColScroll::-webkit-scrollbar-thumb {
-  background: var(--surface-3);
+  background: var(--border-strong);
   border-radius: var(--radius-full);
+  transition: background var(--transition-fast) ease;
+}
+.timeColScroll::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
 }
 
 .timeOpt {
   flex-shrink: 0;
-  height: 34px;
+  height: 42px;
+  scroll-snap-align: center;
   border: none;
   background: transparent;
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
   font-family: var(--font-mono);
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
   font-variant-numeric: tabular-nums;
   transition: background var(--transition-fast) ease,
               color var(--transition-fast) ease;
@@ -908,6 +931,160 @@
 }
 
 .timerStartLabel i { font-size: 15px; }
+
+/* ─── Timer button wrap + kbd hint ──────────────────── */
+.timerBtnWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.kbdHint {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-tertiary);
+  letter-spacing: 0.04em;
+}
+
+.kbdHint kbd {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+@media (max-width: 560px) {
+  .kbdHint { display: none; }
+}
+
+/* ─── Entries header + search ────────────────────────── */
+.entriesHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.searchBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  min-width: 0;
+  width: 200px;
+  transition: border-color var(--transition-fast) ease,
+              width var(--transition-normal) var(--ease-out);
+}
+
+.searchBar:focus-within {
+  border-color: var(--primary);
+  width: 240px;
+}
+
+.searchBar > i:first-child {
+  font-size: 15px;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.searchInput {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  background: transparent;
+  outline: none;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+
+.searchInput::placeholder { color: var(--text-tertiary); }
+
+.searchClear {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  transition: color var(--transition-fast) ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .searchClear:hover { color: var(--text-primary); }
+}
+
+.noResults {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 40px 24px;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  background: var(--surface);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.noResults i { font-size: 18px; }
+
+/* ─── Undo toast ─────────────────────────────────────── */
+.undoToast {
+  position: fixed;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: 50;
+  animation: toastIn var(--transition-normal) var(--ease-out);
+  white-space: nowrap;
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(12px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.undoMsg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.undoMsg i { font-size: 15px; color: var(--error); }
+
+.undoBtn {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--primary-accent);
+  background: transparent;
+  border: none;
+  padding: 0;
+  transition: color var(--transition-fast) ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .undoBtn:hover { color: var(--primary); }
+}
 
 /* ─── Empty state ────────────────────────────────────── */
 .empty {

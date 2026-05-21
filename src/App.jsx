@@ -479,12 +479,35 @@ export default function App() {
 
   const copyEntryHours = async entry => {
     try {
-      await navigator.clipboard.writeText(fmtHoursDec(entry.dur))
+      await navigator.clipboard.writeText(fmtHoursDec(entry.dur).replace('h', ''))
       return true
     } catch {
       return false
     }
   }
+
+  // Undo delete
+  const [undoState, setUndoState] = useState(null)
+  const undoTimerRef = useRef(null)
+
+  // Search
+  const [searchQuery, setSearchQuery] = useState('')
+
+  // Keyboard shortcut (Space → toggle timer)
+  const timerToggleRef = useRef(null)
+  timerToggleRef.current = () => { if (timerActive) stopTimer(); else startTimer() }
+  useEffect(() => {
+    const onKey = e => {
+      if (e.key !== ' ') return
+      const tag = document.activeElement?.tagName
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) return
+      if (document.activeElement?.contentEditable === 'true') return
+      e.preventDefault()
+      timerToggleRef.current?.()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [])
 
   // Manual entry
   const [showManual, setShowManual] = useState(false)
@@ -544,7 +567,23 @@ export default function App() {
 
   const deleteEntry = id => {
     if (id === editingId) { resetManual(); setShowManual(false) }
+    const idx = entries.findIndex(x => x.id === id)
+    const entry = entries[idx]
+    clearTimeout(undoTimerRef.current)
+    setUndoState({ entry, index: idx })
+    undoTimerRef.current = setTimeout(() => setUndoState(null), 4500)
     setEntries(e => e.filter(x => x.id !== id))
+  }
+
+  const handleUndo = () => {
+    clearTimeout(undoTimerRef.current)
+    if (!undoState) return
+    setEntries(prev => {
+      const next = [...prev, undoState.entry]
+      next.sort((a, b) => b.date.localeCompare(a.date) || b.start.localeCompare(a.start))
+      return next
+    })
+    setUndoState(null)
   }
 
   const timerStartStr = timerStart
@@ -561,7 +600,10 @@ export default function App() {
   const totalAll = entries.reduce((s, e) => s + e.dur, 0)
 
   // Grouping
-  const grouped = entries.reduce((acc, e) => {
+  const filteredEntries = searchQuery.trim()
+    ? entries.filter(e => e.desc.toLowerCase().includes(searchQuery.toLowerCase().trim()))
+    : entries
+  const grouped = filteredEntries.reduce((acc, e) => {
     if (!acc[e.date]) acc[e.date] = []
     acc[e.date].push(e)
     return acc
@@ -597,15 +639,20 @@ export default function App() {
               className={styles.timerInput}
               placeholder="O que você está trabalhando?"
               value={timerDesc}
-              onChange={e => setTimerDesc(e.target.value)}
-              disabled={timerActive}
+              onChange={e => {
+                setTimerDesc(e.target.value)
+                if (timerActive) persistTimer({ desc: e.target.value })
+              }}
             />
             <div className={styles.selectWrap}>
               <select
                 className={styles.projSelect}
                 value={timerProj}
-                onChange={e => setTimerProj(parseInt(e.target.value))}
-                disabled={timerActive}
+                onChange={e => {
+                  const v = parseInt(e.target.value)
+                  setTimerProj(v)
+                  if (timerActive) persistTimer({ proj: v })
+                }}
               >
                 {PROJECTS.map((p, i) => (
                   <option key={i} value={i}>{p}</option>
@@ -630,13 +677,17 @@ export default function App() {
                 {fmtDur(timerElapsed)}
               </span>
             </div>
-            <button
-              className={`${styles.btnPrimary} ${styles.btnTimer} ${timerActive ? styles.btnStop : ''}`}
-              onClick={timerActive ? stopTimer : startTimer}
-            >
-              <i className={`ti ${timerActive ? 'ti-player-stop-filled' : 'ti-player-play-filled'}`} aria-hidden="true" />
-              {timerActive ? 'Parar' : 'Iniciar'}
-            </button>
+            <div className={styles.timerBtnWrap}>
+              <button
+                className={`${styles.btnPrimary} ${styles.btnTimer} ${timerActive ? styles.btnStop : ''}`}
+                onClick={timerActive ? stopTimer : startTimer}
+                title={timerActive ? 'Parar (Space)' : 'Iniciar (Space)'}
+              >
+                <i className={`ti ${timerActive ? 'ti-player-stop-filled' : 'ti-player-play-filled'}`} aria-hidden="true" />
+                {timerActive ? 'Parar' : 'Iniciar'}
+              </button>
+              <span className={styles.kbdHint}><kbd>Space</kbd></span>
+            </div>
           </div>
         </div>
 
@@ -719,7 +770,7 @@ export default function App() {
         )}
 
         {/* Entries */}
-        {sortedDays.length === 0 ? (
+        {entries.length === 0 ? (
           <div className={styles.empty}>
             <span className={styles.emptyIcon}>
               <i className="ti ti-clock-hour-3" aria-hidden="true" />
@@ -731,28 +782,62 @@ export default function App() {
           </div>
         ) : (
           <div>
-            <div className={styles.sectionLabel}>Entradas</div>
-            {sortedDays.map(day => (
-              <div className={styles.dayGroup} key={day}>
-                <div className={styles.dayHeader}>
-                  <span className={styles.dayName}>{fmtDate(day)}</span>
-                  <span className={styles.dayTotal}>{fmtHoursDec(grouped[day].reduce((s, e) => s + e.dur, 0))}</span>
-                </div>
-                {grouped[day].map(entry => (
-                  <EntryRow
-                    key={entry.id}
-                    entry={entry}
-                    onEdit={startEdit}
-                    onDelete={deleteEntry}
-                    onResume={resumeEntry}
-                    onCopy={copyEntryHours}
-                  />
-                ))}
+            <div className={styles.entriesHeader}>
+              <span className={styles.sectionLabel} style={{ marginBottom: 0 }}>Entradas</span>
+              <div className={styles.searchBar}>
+                <i className="ti ti-search" aria-hidden="true" />
+                <input
+                  className={styles.searchInput}
+                  placeholder="Buscar..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  aria-label="Buscar entradas"
+                />
+                {searchQuery && (
+                  <button className={styles.searchClear} onClick={() => setSearchQuery('')} aria-label="Limpar busca">
+                    <i className="ti ti-x" aria-hidden="true" />
+                  </button>
+                )}
               </div>
-            ))}
+            </div>
+            {sortedDays.length === 0 ? (
+              <div className={styles.noResults}>
+                <i className="ti ti-search-off" aria-hidden="true" />
+                Nenhum resultado para &ldquo;{searchQuery}&rdquo;
+              </div>
+            ) : (
+              sortedDays.map(day => (
+                <div className={styles.dayGroup} key={day}>
+                  <div className={styles.dayHeader}>
+                    <span className={styles.dayName}>{fmtDate(day)}</span>
+                    <span className={styles.dayTotal}>{fmtHoursDec(grouped[day].reduce((s, e) => s + e.dur, 0))}</span>
+                  </div>
+                  {grouped[day].map(entry => (
+                    <EntryRow
+                      key={entry.id}
+                      entry={entry}
+                      onEdit={startEdit}
+                      onDelete={deleteEntry}
+                      onResume={resumeEntry}
+                      onCopy={copyEntryHours}
+                    />
+                  ))}
+                </div>
+              ))
+            )}
           </div>
         )}
       </main>
+
+      {undoState && (
+        <div className={styles.undoToast} role="status">
+          <span className={styles.undoMsg}>
+            <i className="ti ti-trash" aria-hidden="true" />
+            Entrada removida
+          </span>
+          <button className={styles.undoBtn} onClick={handleUndo}>Desfazer</button>
+        </div>
+      )}
     </div>
   )
 }
