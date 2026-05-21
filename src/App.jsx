@@ -555,6 +555,10 @@ export default function App() {
     setEntries(e => e.filter(x => x.id !== id))
   }
 
+  const timerStartStr = timerStart
+    ? secsToTime(new Date(timerStart).getHours() * 3600 + new Date(timerStart).getMinutes() * 60)
+    : '00:00'
+
   // Stats
   const today = todayStr()
   const todayTotal = entries.filter(e => e.date === today).reduce((s, e) => s + e.dur, 0)
@@ -638,6 +642,15 @@ export default function App() {
               <i className={`ti ti-chevron-down ${styles.selectIcon}`} aria-hidden="true" />
             </div>
           </div>
+          {timerActive && (
+            <div className={styles.timerStartEdit}>
+              <span className={styles.timerStartLabel}>
+                <i className="ti ti-clock-edit" aria-hidden="true" />
+                Início
+              </span>
+              <TimeField value={timerStartStr} onChange={setTimerStartTime} />
+            </div>
+          )}
           <div className={styles.timerHero}>
             <div className={styles.timerReadout}>
               {timerActive && <span className={styles.pulseDot} aria-hidden="true" />}
