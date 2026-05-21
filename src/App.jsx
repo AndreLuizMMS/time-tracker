@@ -28,14 +28,6 @@ function fmtHoursDec(secs) {
   return `${h}h`
 }
 
-function fmtMinutes(secs) {
-  return `${Math.round(secs / 60)}min`
-}
-
-function fmtSummary(secs, unit) {
-  return unit === 'min' ? fmtMinutes(secs) : fmtHoursDec(secs)
-}
-
 function timeToSecs(t) {
   const [h, m] = t.split(':').map(Number)
   return h * 3600 + m * 60
@@ -591,31 +583,11 @@ export default function App() {
 
       <main className={styles.main}>
         {/* Stats */}
-        <div className={styles.summaryHeader}>
-          <span className={styles.sectionLabel} style={{ margin: 0 }}>Resumo</span>
-          <div className={styles.unitToggle} role="group" aria-label="Unidade do resumo">
-            <button
-              type="button"
-              className={`${styles.unitOpt} ${summaryUnit === 'h' ? styles.unitOptActive : ''}`}
-              onClick={() => setSummaryUnit('h')}
-              aria-pressed={summaryUnit === 'h'}
-            >
-              Horas
-            </button>
-            <button
-              type="button"
-              className={`${styles.unitOpt} ${summaryUnit === 'min' ? styles.unitOptActive : ''}`}
-              onClick={() => setSummaryUnit('min')}
-              aria-pressed={summaryUnit === 'min'}
-            >
-              Minutos
-            </button>
-          </div>
-        </div>
+        <div className={styles.sectionLabel} style={{ marginTop: 0 }}>Resumo</div>
         <div className={styles.statsGrid}>
-          <StatCard label="Hoje" icon="ti-calendar-event" primary value={fmtSummary(timerActive ? todayTotal + timerElapsed : todayTotal, summaryUnit)} />
-          <StatCard label="Semana" icon="ti-calendar-week" value={fmtSummary(weekTotal, summaryUnit)} />
-          <StatCard label="Total" icon="ti-sum" value={fmtSummary(totalAll, summaryUnit)} />
+          <StatCard label="Hoje" icon="ti-calendar-event" primary value={fmtHoursDec(timerActive ? todayTotal + timerElapsed : todayTotal)} />
+          <StatCard label="Semana" icon="ti-calendar-week" value={fmtHoursDec(weekTotal)} />
+          <StatCard label="Total" icon="ti-sum" value={fmtHoursDec(totalAll)} />
         </div>
 
         {/* Timer hero */}
