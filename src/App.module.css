@@ -1810,6 +1810,123 @@
   outline: none;
 }
 
+/* ─── Done tasks — agrupadas por dia, com protagonismo ─ */
+.doneSection {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.doneHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  transition: color var(--transition-fast) ease,
+              border-color var(--transition-fast) ease;
+}
+
+.doneHeaderTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.doneHeaderTitle i { font-size: 18px; color: var(--success); }
+
+.doneHeaderCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: var(--radius-full);
+  background: rgba(29,158,117,0.18);
+  color: var(--primary-accent);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.doneHeader .chevron { margin-left: auto; }
+.doneHeaderOpen .chevron { transform: rotate(180deg); }
+
+@media (hover: hover) and (pointer: fine) {
+  .doneHeader:hover { color: var(--text-primary); border-color: var(--border-strong); }
+}
+
+.doneBody {
+  margin-top: 12px;
+  animation: cardIn var(--transition-normal) var(--ease-out);
+}
+
+.doneGroup { margin-bottom: 16px; }
+.doneGroup:last-child { margin-bottom: 0; }
+
+.doneDayHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed var(--border);
+}
+
+.doneDayName {
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  text-transform: capitalize;
+}
+
+.doneDayCount {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.doneRow { opacity: 0.85; }
+
+.doneCheck {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  background: var(--success);
+  color: var(--on-primary);
+  font-size: 14px;
+}
+
+.doneCheck i { font-size: 14px; }
+
+.doneTitle {
+  text-decoration: line-through;
+  text-decoration-color: var(--text-tertiary);
+  color: var(--text-secondary);
+}
+
+.doneTime {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
 /* ─── Notice toast ───────────────────────────────────── */
 .noticeToast {
   position: fixed;

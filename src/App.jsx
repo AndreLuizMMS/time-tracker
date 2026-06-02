@@ -709,7 +709,11 @@ export default function App() {
     taskInputRef.current?.focus()
   }
   const deleteTask = id => setTasks(prev => prev.filter(t => t.id !== id))
-  const toggleDone = id => setTasks(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t))
+  const toggleDone = id => setTasks(prev => prev.map(t => {
+    if (t.id !== id) return t
+    const done = !t.done
+    return { ...t, done, completedAt: done ? Date.now() : null }
+  }))
   const cyclePriority = id => setTasks(prev =>
     prev.map(t => t.id === id ? { ...t, priority: t.priority === 4 ? 1 : t.priority + 1 } : t)
   )
@@ -912,7 +916,19 @@ export default function App() {
     .sort((a, b) => a.priority - b.priority || a.createdAt - b.createdAt)
   const doneTasks = tasks
     .filter(t => t.done)
-    .sort((a, b) => b.createdAt - a.createdAt)
+    .sort((a, b) => (b.completedAt || b.createdAt) - (a.completedAt || a.createdAt))
+
+  // concluídas agrupadas por dia de conclusão (mais recentes no topo)
+  const doneByDay = doneTasks.reduce((acc, t) => {
+    const key = t.completedAt ? localDateStr(new Date(t.completedAt)) : todayStr()
+    ;(acc[key] = acc[key] || []).push(t)
+    return acc
+  }, {})
+  const doneDays = Object.keys(doneByDay).sort((a, b) => b.localeCompare(a))
+  const fmtTime = ts => {
+    const d = new Date(ts)
+    return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+  }
 
   return (
     <div className={styles.layout}>
@@ -1279,47 +1295,69 @@ export default function App() {
               </div>
 
               {doneTasks.length > 0 && (
-                <>
+                <div className={styles.doneSection}>
                   <button
-                    className={styles.taskDoneToggle}
+                    className={`${styles.doneHeader} ${showDoneTasks ? styles.doneHeaderOpen : ''}`}
                     onClick={() => setShowDoneTasks(o => !o)}
+                    aria-expanded={showDoneTasks}
                   >
-                    <i className={`ti ${showDoneTasks ? 'ti-eye-off' : 'ti-eye'}`} aria-hidden="true" />
-                    {doneTasks.length} concluída{doneTasks.length !== 1 ? 's' : ''}
+                    <span className={styles.doneHeaderTitle}>
+                      <i className="ti ti-circle-check-filled" aria-hidden="true" />
+                      Concluídas
+                    </span>
+                    <span className={styles.doneHeaderCount}>{doneTasks.length}</span>
+                    <i className={`ti ti-chevron-down ${styles.chevron}`} aria-hidden="true" />
                   </button>
+
                   {showDoneTasks && (
-                    <div className={styles.taskList}>
-                      {doneTasks.map(task => (
-                        <div
-                          key={task.id}
-                          className={`${styles.taskRow} ${styles.taskRowDone}`}
-                        >
-                          <span className={`${styles.taskBadge} ${styles.priorityBadgeDone}`}>
-                            P{task.priority}
-                          </span>
-                          <span className={`${styles.taskTitle} ${styles.taskTitleDone}`}>{task.title}</span>
-                          <div className={styles.taskActions}>
-                            <button
-                              className={styles.btnAction}
-                              onClick={() => toggleDone(task.id)}
-                              aria-label="Reabrir tarefa"
-                              title="Reabrir"
-                            >
-                              <i className="ti ti-rotate-ccw" aria-hidden="true" />
-                            </button>
-                            <button
-                              className={styles.btnDel}
-                              onClick={() => deleteTask(task.id)}
-                              aria-label="Remover tarefa"
-                            >
-                              <i className="ti ti-trash" aria-hidden="true" />
-                            </button>
+                    <div className={styles.doneBody}>
+                      {doneDays.map(day => (
+                        <div key={day} className={styles.doneGroup}>
+                          <div className={styles.doneDayHeader}>
+                            <span className={styles.doneDayName}>{fmtDate(day)}</span>
+                            <span className={styles.doneDayCount}>
+                              {doneByDay[day].length} tarefa{doneByDay[day].length !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                          <div className={styles.taskList}>
+                            {doneByDay[day].map(task => (
+                              <div
+                                key={task.id}
+                                className={`${styles.taskRow} ${styles.doneRow}`}
+                                style={{ '--task-priority-color': PRIORITY_COLORS[task.priority] }}
+                              >
+                                <span className={styles.doneCheck} aria-hidden="true">
+                                  <i className="ti ti-check" />
+                                </span>
+                                <span className={`${styles.taskTitle} ${styles.doneTitle}`}>{task.title}</span>
+                                {task.completedAt && (
+                                  <span className={styles.doneTime}>{fmtTime(task.completedAt)}</span>
+                                )}
+                                <div className={styles.taskActions}>
+                                  <button
+                                    className={styles.btnAction}
+                                    onClick={() => toggleDone(task.id)}
+                                    aria-label="Reabrir tarefa"
+                                    title="Reabrir"
+                                  >
+                                    <i className="ti ti-rotate-ccw" aria-hidden="true" />
+                                  </button>
+                                  <button
+                                    className={styles.btnDel}
+                                    onClick={() => deleteTask(task.id)}
+                                    aria-label="Remover tarefa"
+                                  >
+                                    <i className="ti ti-trash" aria-hidden="true" />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       ))}
                     </div>
                   )}
-                </>
+                </div>
               )}
             </div>
           )}
