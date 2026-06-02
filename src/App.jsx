@@ -693,7 +693,7 @@ export default function App() {
   const [tasks, setTasks] = useState(() => loadStorage('tt_tasks', []))
   const [taskInput, setTaskInput] = useState('')
   const [taskPriority, setTaskPriority] = useState(3)
-  const [tasksOpen, setTasksOpen] = useState(true)
+  const [tasksOpen, setTasksOpen] = useState(false)
   const [showDoneTasks, setShowDoneTasks] = useState(false)
   const [editingTaskId, setEditingTaskId] = useState(null)
   const [editingTaskText, setEditingTaskText] = useState('')
