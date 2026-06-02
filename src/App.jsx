@@ -1,18 +1,30 @@
 import { useState, useEffect, useRef, forwardRef } from 'react'
 import styles from './App.module.css'
 
-const PROJECTS = ['Geral', 'Design', 'Desenvolvimento', 'Reunião', 'Pesquisa']
-const PROJ_COLORS = ['#1D9E75', '#378ADD', '#D4537E', '#BA7517', '#7F77DD']
+const DEFAULT_PROJECTS = [
+  { id: 0, name: 'Geral', color: '#1D9E75' },
+  { id: 1, name: 'Design', color: '#378ADD' },
+  { id: 2, name: 'Desenvolvimento', color: '#D4537E' },
+  { id: 3, name: 'Reunião', color: '#BA7517' },
+  { id: 4, name: 'Pesquisa', color: '#7F77DD' },
+]
+const PALETTE = ['#1D9E75', '#2FB488', '#378ADD', '#7F77DD', '#D4537E', '#E24B4A', '#E0A03B', '#BA7517', '#54534E']
+const FALLBACK_COLOR = '#74726b'
+
+const PRIORITY_COLORS = { 1: '#E24B4A', 2: '#E0A03B', 3: '#1D9E75', 4: '#74726B' }
+const PRIORITY_LABELS = ['Urgente', 'Alta', 'Normal', 'Baixa']
 const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
+const pad2 = n => String(n).padStart(2, '0')
+
 function fmtDur(secs) {
   const h = Math.floor(secs / 3600)
   const m = Math.floor((secs % 3600) / 60)
   const s = secs % 60
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  return `${pad2(h)}:${pad2(m)}:${pad2(s)}`
 }
 
 function fmtHM(secs) {
@@ -34,20 +46,25 @@ function timeToSecs(t) {
 }
 
 function secsToTime(s) {
-  return `${String(Math.floor(s / 3600)).padStart(2, '0')}:${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}`
+  return `${pad2(Math.floor(s / 3600))}:${pad2(Math.floor((s % 3600) / 60))}`
+}
+
+// data local (evita deslocamento de fuso do toISOString em UTC)
+function localDateStr(d) {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
 }
 
 function todayStr() {
-  return new Date().toISOString().split('T')[0]
+  return localDateStr(new Date())
 }
 
 function fmtDate(d) {
   const dt = new Date(d + 'T12:00:00')
   const now = new Date()
-  const today = now.toISOString().split('T')[0]
+  const today = localDateStr(now)
   const yd = new Date(now)
   yd.setDate(yd.getDate() - 1)
-  const ydStr = yd.toISOString().split('T')[0]
+  const ydStr = localDateStr(yd)
   if (d === today) return 'Hoje'
   if (d === ydStr) return 'Ontem'
   return dt.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
@@ -68,6 +85,24 @@ function saveStorage(key, value) {
   } catch {}
 }
 
+// dispara download de um arquivo gerado em memória
+function downloadFile(filename, text, type) {
+  const blob = new Blob([text], { type })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
+function csvCell(v) {
+  const s = String(v ?? '')
+  return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+}
+
 // ─── Components ─────────────────────────────────────────────────────────────
 
 function StatCard({ label, value, icon, primary }) {
@@ -82,7 +117,7 @@ function StatCard({ label, value, icon, primary }) {
   )
 }
 
-function EntryRow({ entry, onEdit, onDelete, onResume, onCopy }) {
+function EntryRow({ entry, project, editing, onEdit, onDelete, onResume, onCopy }) {
   const [copied, setCopied] = useState(false)
 
   const handleCopy = async e => {
@@ -96,8 +131,8 @@ function EntryRow({ entry, onEdit, onDelete, onResume, onCopy }) {
 
   return (
     <div
-      className={styles.entryRow}
-      style={{ '--entry-accent': PROJ_COLORS[entry.proj] }}
+      className={`${styles.entryRow} ${editing ? styles.entryRowEditing : ''}`}
+      style={{ '--entry-accent': project.color }}
       onClick={() => onEdit(entry)}
       role="button"
       tabIndex={0}
@@ -106,7 +141,7 @@ function EntryRow({ entry, onEdit, onDelete, onResume, onCopy }) {
       <span className={styles.entryDesc}>{entry.desc}</span>
       <span className={styles.entryProj}>
         <span className={styles.entryProjDot} aria-hidden="true" />
-        {PROJECTS[entry.proj]}
+        {project.name}
       </span>
       <span className={styles.entryRange}>{entry.start} – {entry.end}</span>
       <span className={styles.entryDur}>{fmtHoursDec(entry.dur)}</span>
@@ -155,7 +190,39 @@ function useDismiss(open, setOpen, ref) {
   }, [open, setOpen, ref])
 }
 
-const pad2 = n => String(n).padStart(2, '0')
+// seletor de cor por paleta fixa
+function ColorSwatch({ color, onChange, small }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  useDismiss(open, setOpen, ref)
+  return (
+    <div className={styles.swatchWrap} ref={ref}>
+      <button
+        type="button"
+        className={`${styles.swatchBtn} ${small ? styles.swatchBtnSm : ''}`}
+        style={{ '--sw': color }}
+        onClick={() => setOpen(o => !o)}
+        aria-label="Escolher cor"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+      />
+      {open && (
+        <div className={styles.swatchPop} role="dialog">
+          {PALETTE.map(c => (
+            <button
+              key={c}
+              type="button"
+              className={`${styles.swatchOpt} ${c.toLowerCase() === color.toLowerCase() ? styles.swatchOptActive : ''}`}
+              style={{ '--sw': c }}
+              onClick={() => { onChange(c); setOpen(false) }}
+              aria-label={c}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 const TimeField = forwardRef(function TimeField({ value, onChange, onComplete }, inputRef) {
   const [open, setOpen] = useState(false)
@@ -355,15 +422,81 @@ function DateField({ value, onChange }) {
   )
 }
 
+// menu de dados (exportar / importar) no header
+function DataMenu({ onExportCsv, onExportJson, onImport }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  const fileRef = useRef(null)
+  useDismiss(open, setOpen, ref)
+
+  const pick = fn => { setOpen(false); fn() }
+
+  return (
+    <div className={styles.menuWrap} ref={ref}>
+      <button
+        type="button"
+        className={styles.iconBtn}
+        onClick={() => setOpen(o => !o)}
+        aria-label="Dados e backup"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title="Dados e backup"
+      >
+        <i className="ti ti-dots-vertical" aria-hidden="true" />
+      </button>
+      {open && (
+        <div className={styles.menu} role="menu">
+          <button className={styles.menuItem} role="menuitem" onClick={() => pick(onExportCsv)}>
+            <i className="ti ti-file-spreadsheet" aria-hidden="true" />
+            Exportar CSV
+          </button>
+          <button className={styles.menuItem} role="menuitem" onClick={() => pick(onExportJson)}>
+            <i className="ti ti-download" aria-hidden="true" />
+            Exportar backup (JSON)
+          </button>
+          <button className={styles.menuItem} role="menuitem" onClick={() => pick(() => fileRef.current?.click())}>
+            <i className="ti ti-upload" aria-hidden="true" />
+            Importar backup
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json,.json"
+            className={styles.hiddenFile}
+            onChange={e => { const f = e.target.files?.[0]; if (f) onImport(f); e.target.value = '' }}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── App ─────────────────────────────────────────────────────────────────────
 
 export default function App() {
+  // Projects
+  const [projects, setProjects] = useState(() => {
+    const saved = loadStorage('tt_projects', null)
+    return Array.isArray(saved) && saved.length ? saved : DEFAULT_PROJECTS
+  })
+  useEffect(() => { saveStorage('tt_projects', projects) }, [projects])
+
+  const projById = id => projects.find(p => p.id === id)
+  const projName = id => projById(id)?.name ?? 'Sem projeto'
+  const projColor = id => projById(id)?.color ?? FALLBACK_COLOR
+
   // Entries
   const [entries, setEntries] = useState(() => loadStorage('tt_entries', []))
+  useEffect(() => { saveStorage('tt_entries', entries) }, [entries])
 
-  useEffect(() => {
-    saveStorage('tt_entries', entries)
-  }, [entries])
+  // Transient notice toast
+  const [notice, setNotice] = useState(null)
+  const noticeRef = useRef(null)
+  const showNotice = msg => {
+    clearTimeout(noticeRef.current)
+    setNotice(msg)
+    noticeRef.current = setTimeout(() => setNotice(null), 2600)
+  }
 
   // Timer
   const [timerActive, setTimerActive] = useState(false)
@@ -391,7 +524,7 @@ export default function App() {
       setTimerActive(true)
       setTimerStart(saved.start)
       setTimerDesc(saved.desc || '')
-      setTimerProj(saved.proj || 0)
+      setTimerProj(saved.proj ?? 0)
       setTimerResumeId(saved.resumeId ?? null)
     }
   }, [])
@@ -421,16 +554,24 @@ export default function App() {
   }
 
   const stopTimer = () => {
-    if (timerElapsed < 1) return
-    const now = new Date()
-    const endSecs = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds()
-    const startSecs = endSecs - timerElapsed
-    const dateStr = now.toISOString().split('T')[0]
+    if (timerElapsed < 1) {
+      setTimerActive(false)
+      setTimerElapsed(0)
+      setTimerResumeId(null)
+      saveStorage('tt_timer', { active: false })
+      showNotice('Timer muito curto — descartado')
+      return
+    }
+    // deriva início/fim/data do instante real de início (suporta virar meia-noite)
+    const startDate = new Date(timerStart)
+    const dateStr = localDateStr(startDate)
+    const startSecs = startDate.getHours() * 3600 + startDate.getMinutes() * 60 + startDate.getSeconds()
+    const endSecs = (startSecs + timerElapsed) % 86400
     if (timerResumeId !== null) {
       // retomada: estende a entrada original em vez de criar nova
       setEntries(prev => prev.map(x => {
         if (x.id !== timerResumeId) return x
-        const end = secsToTime(timeToSecs(x.start) + timerElapsed)
+        const end = secsToTime((timeToSecs(x.start) + timerElapsed) % 86400)
         return { ...x, desc: timerDesc || 'Sem descrição', proj: timerProj, end, dur: timerElapsed }
       }))
     } else {
@@ -439,7 +580,7 @@ export default function App() {
         date: dateStr,
         desc: timerDesc || 'Sem descrição',
         proj: timerProj,
-        start: secsToTime(Math.max(0, startSecs)),
+        start: secsToTime(startSecs),
         end: secsToTime(endSecs),
         dur: timerElapsed,
       }
@@ -463,6 +604,7 @@ export default function App() {
     setTimerElapsed(entry.dur)
     setTimerActive(true)
     saveStorage('tt_timer', { active: true, start: s, desc: entry.desc, proj: entry.proj, resumeId: entry.id })
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   // ajusta manualmente a hora de início de um timer ativo
@@ -486,28 +628,127 @@ export default function App() {
     }
   }
 
+  // ─── Projetos (CRUD) ──────────────────────────────────────────────────────
+  const [projectsOpen, setProjectsOpen] = useState(false)
+  const [newProjName, setNewProjName] = useState('')
+  const [newProjColor, setNewProjColor] = useState(PALETTE[0])
+
+  const addProject = () => {
+    const name = newProjName.trim()
+    if (!name) return
+    setProjects(prev => [...prev, { id: Date.now(), name, color: newProjColor }])
+    setNewProjName('')
+    setNewProjColor(PALETTE[(projects.length + 1) % PALETTE.length])
+  }
+  const renameProject = (id, name) => setProjects(prev => prev.map(p => p.id === id ? { ...p, name } : p))
+  const recolorProject = (id, color) => setProjects(prev => prev.map(p => p.id === id ? { ...p, color } : p))
+  const deleteProject = id => {
+    if (projects.length <= 1) { showNotice('Mantenha ao menos um projeto'); return }
+    const used = entries.some(e => e.proj === id)
+    if (used && !window.confirm('Há entradas neste projeto. Removê-lo deixa essas entradas sem projeto. Continuar?')) return
+    setProjects(prev => prev.filter(p => p.id !== id))
+  }
+
+  // ─── Backup (export / import) ─────────────────────────────────────────────
+  const exportCsv = () => {
+    if (entries.length === 0) { showNotice('Nada para exportar'); return }
+    const header = ['Data', 'Início', 'Fim', 'Duração (h)', 'Projeto', 'Descrição']
+    const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start))
+    const lines = [header, ...sorted.map(e => [
+      e.date, e.start, e.end, (e.dur / 3600).toFixed(2).replace('.', ','), projName(e.proj), e.desc,
+    ])]
+    const csv = '﻿' + lines.map(r => r.map(csvCell).join(';')).join('\r\n')
+    downloadFile(`time-tracker-${todayStr()}.csv`, csv, 'text/csv;charset=utf-8')
+  }
+
+  const exportJson = () => {
+    const data = { version: 1, exportedAt: new Date().toISOString(), projects, entries, tasks }
+    downloadFile(`time-tracker-backup-${todayStr()}.json`, JSON.stringify(data, null, 2), 'application/json')
+  }
+
+  const importJson = file => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      let data
+      try {
+        data = JSON.parse(reader.result)
+      } catch {
+        showNotice('Arquivo inválido')
+        return
+      }
+      if (!data || (!Array.isArray(data.entries) && !Array.isArray(data.tasks) && !Array.isArray(data.projects))) {
+        showNotice('Backup não reconhecido')
+        return
+      }
+      if (!window.confirm('Importar substitui todos os dados atuais (entradas, tarefas e projetos). Continuar?')) return
+      if (Array.isArray(data.projects) && data.projects.length) setProjects(data.projects)
+      if (Array.isArray(data.entries)) setEntries(data.entries)
+      if (Array.isArray(data.tasks)) setTasks(data.tasks)
+      showNotice('Backup importado')
+    }
+    reader.readAsText(file)
+  }
+
+  // Tasks backlog
+  const [tasks, setTasks] = useState(() => loadStorage('tt_tasks', []))
+  const [taskInput, setTaskInput] = useState('')
+  const [taskPriority, setTaskPriority] = useState(3)
+  const [tasksOpen, setTasksOpen] = useState(true)
+  const [showDoneTasks, setShowDoneTasks] = useState(false)
+  const [editingTaskId, setEditingTaskId] = useState(null)
+  const [editingTaskText, setEditingTaskText] = useState('')
+  const taskInputRef = useRef(null)
+
+  useEffect(() => { saveStorage('tt_tasks', tasks) }, [tasks])
+
+  const addTask = () => {
+    const title = taskInput.trim()
+    if (!title) return
+    setTasks(prev => [...prev, { id: Date.now(), title, priority: taskPriority, done: false, createdAt: Date.now() }])
+    setTaskInput('')
+    taskInputRef.current?.focus()
+  }
+  const deleteTask = id => setTasks(prev => prev.filter(t => t.id !== id))
+  const toggleDone = id => setTasks(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t))
+  const cyclePriority = id => setTasks(prev =>
+    prev.map(t => t.id === id ? { ...t, priority: t.priority === 4 ? 1 : t.priority + 1 } : t)
+  )
+
+  const beginEditTask = task => { setEditingTaskId(task.id); setEditingTaskText(task.title) }
+  const commitEditTask = () => {
+    const title = editingTaskText.trim()
+    if (title) setTasks(prev => prev.map(t => t.id === editingTaskId ? { ...t, title } : t))
+    setEditingTaskId(null)
+    setEditingTaskText('')
+  }
+
+  const startTimerFromTask = task => {
+    if (timerActive) return
+    const s = Date.now()
+    setTimerDesc(task.title)
+    setTimerProj(projects[0]?.id ?? 0)
+    setTimerStart(s)
+    setTimerActive(true)
+    setTimerElapsed(0)
+    setTimerResumeId(null)
+    saveStorage('tt_timer', { active: true, start: s, desc: task.title, proj: projects[0]?.id ?? 0, resumeId: null })
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   // Undo delete
   const [undoState, setUndoState] = useState(null)
   const undoTimerRef = useRef(null)
 
-  // Search
+  // Search + filters
   const [searchQuery, setSearchQuery] = useState('')
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [filterProj, setFilterProj] = useState('all')
+  const [filterFrom, setFilterFrom] = useState('')
+  const [filterTo, setFilterTo] = useState('')
+  const searchRef = useRef(null)
 
-  // Keyboard shortcut (Space → toggle timer)
-  const timerToggleRef = useRef(null)
-  timerToggleRef.current = () => { if (timerActive) stopTimer(); else startTimer() }
-  useEffect(() => {
-    const onKey = e => {
-      if (e.key !== ' ') return
-      const tag = document.activeElement?.tagName
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) return
-      if (document.activeElement?.contentEditable === 'true') return
-      e.preventDefault()
-      timerToggleRef.current?.()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [])
+  const clearFilters = () => { setFilterProj('all'); setFilterFrom(''); setFilterTo('') }
+  const hasFilters = filterProj !== 'all' || filterFrom || filterTo
 
   // Manual entry
   const [showManual, setShowManual] = useState(false)
@@ -524,7 +765,7 @@ export default function App() {
     setMDesc('')
     setMStart('09:00')
     setMEnd('10:00')
-    setMProj(0)
+    setMProj(projects[0]?.id ?? 0)
     setMDate(todayStr())
     setEditingId(null)
     setMErr('')
@@ -539,6 +780,7 @@ export default function App() {
     setMDesc(entry.desc === 'Sem descrição' ? '' : entry.desc)
     setMErr('')
     setShowManual(true)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const saveManual = () => {
@@ -565,6 +807,22 @@ export default function App() {
     setShowManual(false)
   }
 
+  // duração derivada para o campo manual; editá-la ajusta o fim
+  const mDurSecs = Math.max(0, timeToSecs(mEnd) - timeToSecs(mStart))
+  const setDurationField = hhmm => {
+    let endS = timeToSecs(mStart) + timeToSecs(hhmm)
+    if (endS > 86340) endS = 86340
+    setMEnd(secsToTime(endS))
+  }
+
+  // aviso de sobreposição (não bloqueia o salvamento)
+  const mSsec = timeToSecs(mStart)
+  const mEsec = timeToSecs(mEnd)
+  const overlap = showManual && mEsec > mSsec && entries.some(x =>
+    x.id !== editingId && x.date === mDate &&
+    mSsec < timeToSecs(x.end) && mEsec > timeToSecs(x.start)
+  )
+
   const deleteEntry = id => {
     if (id === editingId) { resetManual(); setShowManual(false) }
     const idx = entries.findIndex(x => x.id === id)
@@ -590,25 +848,71 @@ export default function App() {
     ? secsToTime(new Date(timerStart).getHours() * 3600 + new Date(timerStart).getMinutes() * 60)
     : '00:00'
 
+  // Keyboard shortcuts: Space → timer · M → manual · / → busca
+  const actionsRef = useRef({})
+  actionsRef.current = {
+    toggleTimer: () => { if (timerActive) stopTimer(); else startTimer() },
+    toggleManual: () => {
+      if (showManual) { resetManual(); setShowManual(false) }
+      else { setShowManual(true); window.scrollTo({ top: 0, behavior: 'smooth' }) }
+    },
+    focusSearch: () => searchRef.current?.focus(),
+  }
+  useEffect(() => {
+    const onKey = e => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      const tag = document.activeElement?.tagName
+      const typing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(tag) || document.activeElement?.contentEditable === 'true'
+      if (typing) return
+      if (e.key === ' ') { e.preventDefault(); actionsRef.current.toggleTimer() }
+      else if (e.key === 'm' || e.key === 'M') { e.preventDefault(); actionsRef.current.toggleManual() }
+      else if (e.key === '/') { e.preventDefault(); actionsRef.current.focusSearch() }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [])
+
   // Stats
   const today = todayStr()
   const todayTotal = entries.filter(e => e.date === today).reduce((s, e) => s + e.dur, 0)
   const weekStart = new Date()
   weekStart.setDate(weekStart.getDate() - weekStart.getDay())
-  const weekStartStr = weekStart.toISOString().split('T')[0]
+  const weekStartStr = localDateStr(weekStart)
   const weekTotal = entries.filter(e => e.date >= weekStartStr).reduce((s, e) => s + e.dur, 0)
   const totalAll = entries.reduce((s, e) => s + e.dur, 0)
 
-  // Grouping
-  const filteredEntries = searchQuery.trim()
-    ? entries.filter(e => e.desc.toLowerCase().includes(searchQuery.toLowerCase().trim()))
-    : entries
+  // Filtering + grouping
+  const q = searchQuery.toLowerCase().trim()
+  const filteredEntries = entries.filter(e => {
+    if (q && !e.desc.toLowerCase().includes(q)) return false
+    if (filterProj !== 'all' && e.proj !== filterProj) return false
+    if (filterFrom && e.date < filterFrom) return false
+    if (filterTo && e.date > filterTo) return false
+    return true
+  })
   const grouped = filteredEntries.reduce((acc, e) => {
-    if (!acc[e.date]) acc[e.date] = []
-    acc[e.date].push(e)
+    (acc[e.date] = acc[e.date] || []).push(e)
     return acc
   }, {})
   const sortedDays = Object.keys(grouped).sort((a, b) => b.localeCompare(a))
+
+  // Breakdown por projeto (respeita filtros)
+  const projTotals = (() => {
+    const map = new Map()
+    filteredEntries.forEach(e => map.set(e.proj, (map.get(e.proj) || 0) + e.dur))
+    const arr = [...map.entries()].map(([id, dur]) => ({ id, dur, name: projName(id), color: projColor(id) }))
+    arr.sort((a, b) => b.dur - a.dur)
+    return arr
+  })()
+  const breakdownMax = projTotals[0]?.dur || 1
+  const breakdownTotal = projTotals.reduce((s, p) => s + p.dur, 0)
+
+  const activeTasks = tasks
+    .filter(t => !t.done)
+    .sort((a, b) => a.priority - b.priority || a.createdAt - b.createdAt)
+  const doneTasks = tasks
+    .filter(t => t.done)
+    .sort((a, b) => b.createdAt - a.createdAt)
 
   return (
     <div className={styles.layout}>
@@ -620,6 +924,7 @@ export default function App() {
             </span>
             <span>Time Tracker</span>
           </div>
+          <DataMenu onExportCsv={exportCsv} onExportJson={exportJson} onImport={importJson} />
         </div>
       </header>
 
@@ -654,8 +959,8 @@ export default function App() {
                   if (timerActive) persistTimer({ proj: v })
                 }}
               >
-                {PROJECTS.map((p, i) => (
-                  <option key={i} value={i}>{p}</option>
+                {projects.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>
               <i className={`ti ti-chevron-down ${styles.selectIcon}`} aria-hidden="true" />
@@ -721,10 +1026,10 @@ export default function App() {
                   <select
                     className={styles.formSelect}
                     value={mProj}
-                    onChange={e => setMProj(e.target.value)}
+                    onChange={e => setMProj(parseInt(e.target.value))}
                   >
-                    {PROJECTS.map((p, i) => (
-                      <option key={i} value={i}>{p}</option>
+                    {projects.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
                     ))}
                   </select>
                   <i className={`ti ti-chevron-down ${styles.selectIcon}`} aria-hidden="true" />
@@ -738,6 +1043,10 @@ export default function App() {
                 <label className={styles.formLabel}>Fim</label>
                 <TimeField ref={endRef} value={mEnd} onChange={setMEnd} />
               </div>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Duração</label>
+                <TimeField value={secsToTime(mDurSecs)} onChange={setDurationField} />
+              </div>
             </div>
             <div className={styles.formGroup} style={{ marginBottom: '12px' }}>
               <label className={styles.formLabel}>Descrição</label>
@@ -749,12 +1058,17 @@ export default function App() {
               />
             </div>
             <div className={styles.manualFooter}>
-              {mErr && (
+              {mErr ? (
                 <span className={styles.formErr}>
                   <i className="ti ti-alert-circle" aria-hidden="true" />
                   {mErr}
                 </span>
-              )}
+              ) : overlap ? (
+                <span className={styles.formWarn}>
+                  <i className="ti ti-alert-triangle" aria-hidden="true" />
+                  Sobrepõe outra entrada neste dia
+                </span>
+              ) : null}
               <button
                 type="button"
                 className={styles.btnSecondary}
@@ -768,6 +1082,248 @@ export default function App() {
             </div>
           </form>
         )}
+
+        {/* Projects manager */}
+        <div className={styles.taskSection}>
+          <button
+            className={`${styles.taskSectionHeader} ${projectsOpen ? styles.taskSectionOpen : ''}`}
+            onClick={() => setProjectsOpen(o => !o)}
+            aria-expanded={projectsOpen}
+          >
+            <span className={styles.taskSectionTitle}>
+              <i className="ti ti-folders" aria-hidden="true" />
+              Projetos
+            </span>
+            <span className={styles.taskCountBadge}>{projects.length}</span>
+            <i className={`ti ti-chevron-down ${styles.chevron}`} aria-hidden="true" />
+          </button>
+          {projectsOpen && (
+            <div className={styles.taskBody}>
+              <div className={styles.projList}>
+                {projects.map(p => (
+                  <div key={p.id} className={styles.projRow}>
+                    <ColorSwatch color={p.color} onChange={c => recolorProject(p.id, c)} small />
+                    <input
+                      className={styles.projNameInput}
+                      value={p.name}
+                      onChange={e => renameProject(p.id, e.target.value)}
+                      aria-label="Nome do projeto"
+                    />
+                    <button
+                      className={styles.btnDel}
+                      onClick={() => deleteProject(p.id)}
+                      aria-label="Remover projeto"
+                      disabled={projects.length <= 1}
+                    >
+                      <i className="ti ti-trash" aria-hidden="true" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className={styles.projAddRow}>
+                <ColorSwatch color={newProjColor} onChange={setNewProjColor} small />
+                <input
+                  className={styles.taskAddInput}
+                  placeholder="Novo projeto..."
+                  value={newProjName}
+                  onChange={e => setNewProjName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addProject() } }}
+                  aria-label="Novo projeto"
+                />
+                <button
+                  type="button"
+                  className={styles.taskAddBtn}
+                  onClick={addProject}
+                  disabled={!newProjName.trim()}
+                  aria-label="Adicionar projeto"
+                >
+                  <i className="ti ti-plus" aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Task Backlog */}
+        <div className={styles.taskSection}>
+          <button
+            className={`${styles.taskSectionHeader} ${tasksOpen ? styles.taskSectionOpen : ''}`}
+            onClick={() => setTasksOpen(o => !o)}
+            aria-expanded={tasksOpen}
+          >
+            <span className={styles.taskSectionTitle}>
+              <i className="ti ti-list-check" aria-hidden="true" />
+              Tarefas
+            </span>
+            {activeTasks.length > 0 && (
+              <span className={styles.taskCountBadge}>{activeTasks.length}</span>
+            )}
+            <i className={`ti ti-chevron-down ${styles.chevron}`} aria-hidden="true" />
+          </button>
+
+          {tasksOpen && (
+            <div className={styles.taskBody}>
+              <div className={styles.taskAddRow}>
+                <div className={styles.taskPriorityPicker}>
+                  {[1, 2, 3, 4].map(p => (
+                    <button
+                      key={p}
+                      type="button"
+                      className={`${styles.taskPriorityBtn} ${taskPriority === p ? styles.taskPriorityBtnActive : ''} ${styles[`priorityBtn${p}`]}`}
+                      onClick={() => setTaskPriority(p)}
+                      aria-label={`Prioridade P${p}`}
+                      title={PRIORITY_LABELS[p - 1]}
+                    >
+                      P{p}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  ref={taskInputRef}
+                  className={styles.taskAddInput}
+                  placeholder="Adicionar tarefa..."
+                  value={taskInput}
+                  onChange={e => setTaskInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTask() } }}
+                  aria-label="Nova tarefa"
+                />
+                <button
+                  type="button"
+                  className={styles.taskAddBtn}
+                  onClick={addTask}
+                  disabled={!taskInput.trim()}
+                  aria-label="Adicionar tarefa"
+                >
+                  <i className="ti ti-plus" aria-hidden="true" />
+                </button>
+              </div>
+
+              {tasks.length === 0 && (
+                <p className={styles.taskEmpty}>Nenhuma tarefa. Adicione acima.</p>
+              )}
+
+              <div className={styles.taskList}>
+                {activeTasks.map(task => (
+                  <div
+                    key={task.id}
+                    className={styles.taskRow}
+                    style={{ '--task-priority-color': PRIORITY_COLORS[task.priority] }}
+                  >
+                    <button
+                      className={`${styles.taskBadge} ${styles[`priorityBadge${task.priority}`]}`}
+                      onClick={() => cyclePriority(task.id)}
+                      aria-label={`Prioridade P${task.priority} — clique para mudar`}
+                      title="Clique para mudar prioridade"
+                    >
+                      P{task.priority}
+                    </button>
+                    {editingTaskId === task.id ? (
+                      <input
+                        className={styles.taskEditInput}
+                        value={editingTaskText}
+                        onChange={e => setEditingTaskText(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') { e.preventDefault(); commitEditTask() }
+                          if (e.key === 'Escape') { setEditingTaskId(null); setEditingTaskText('') }
+                        }}
+                        onBlur={commitEditTask}
+                        autoFocus
+                        aria-label="Editar tarefa"
+                      />
+                    ) : (
+                      <span
+                        className={styles.taskTitle}
+                        onDoubleClick={() => beginEditTask(task)}
+                        title="Duplo clique para editar"
+                      >
+                        {task.title}
+                      </span>
+                    )}
+                    <div className={styles.taskActions}>
+                      <button
+                        className={`${styles.btnAction} ${styles.taskStartBtn}`}
+                        onClick={() => startTimerFromTask(task)}
+                        disabled={timerActive}
+                        aria-label="Iniciar timer com esta tarefa"
+                        title={timerActive ? 'Timer em andamento' : 'Iniciar timer'}
+                      >
+                        <i className="ti ti-player-play-filled" aria-hidden="true" />
+                        <span className={styles.taskStartLabel}>Iniciar</span>
+                      </button>
+                      <button
+                        className={styles.btnAction}
+                        onClick={() => beginEditTask(task)}
+                        aria-label="Editar tarefa"
+                        title="Editar"
+                      >
+                        <i className="ti ti-pencil" aria-hidden="true" />
+                      </button>
+                      <button
+                        className={styles.btnAction}
+                        onClick={() => toggleDone(task.id)}
+                        aria-label="Marcar como concluída"
+                        title="Concluir"
+                      >
+                        <i className="ti ti-check" aria-hidden="true" />
+                      </button>
+                      <button
+                        className={styles.btnDel}
+                        onClick={() => deleteTask(task.id)}
+                        aria-label="Remover tarefa"
+                      >
+                        <i className="ti ti-trash" aria-hidden="true" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {doneTasks.length > 0 && (
+                <>
+                  <button
+                    className={styles.taskDoneToggle}
+                    onClick={() => setShowDoneTasks(o => !o)}
+                  >
+                    <i className={`ti ${showDoneTasks ? 'ti-eye-off' : 'ti-eye'}`} aria-hidden="true" />
+                    {doneTasks.length} concluída{doneTasks.length !== 1 ? 's' : ''}
+                  </button>
+                  {showDoneTasks && (
+                    <div className={styles.taskList}>
+                      {doneTasks.map(task => (
+                        <div
+                          key={task.id}
+                          className={`${styles.taskRow} ${styles.taskRowDone}`}
+                        >
+                          <span className={`${styles.taskBadge} ${styles.priorityBadgeDone}`}>
+                            P{task.priority}
+                          </span>
+                          <span className={`${styles.taskTitle} ${styles.taskTitleDone}`}>{task.title}</span>
+                          <div className={styles.taskActions}>
+                            <button
+                              className={styles.btnAction}
+                              onClick={() => toggleDone(task.id)}
+                              aria-label="Reabrir tarefa"
+                              title="Reabrir"
+                            >
+                              <i className="ti ti-rotate-ccw" aria-hidden="true" />
+                            </button>
+                            <button
+                              className={styles.btnDel}
+                              onClick={() => deleteTask(task.id)}
+                              aria-label="Remover tarefa"
+                            >
+                              <i className="ti ti-trash" aria-hidden="true" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Entries */}
         {entries.length === 0 ? (
@@ -784,46 +1340,129 @@ export default function App() {
           <div>
             <div className={styles.entriesHeader}>
               <span className={styles.sectionLabel} style={{ marginBottom: 0 }}>Entradas</span>
-              <div className={styles.searchBar}>
-                <i className="ti ti-search" aria-hidden="true" />
+              <div className={styles.entriesTools}>
+                <button
+                  className={`${styles.filterToggle} ${filtersOpen || hasFilters ? styles.filterToggleOn : ''}`}
+                  onClick={() => setFiltersOpen(o => !o)}
+                  aria-label="Filtros"
+                  aria-expanded={filtersOpen}
+                  title="Filtros"
+                >
+                  <i className="ti ti-filter" aria-hidden="true" />
+                  {hasFilters && <span className={styles.filterDot} aria-hidden="true" />}
+                </button>
+                <div className={styles.searchBar}>
+                  <i className="ti ti-search" aria-hidden="true" />
+                  <input
+                    ref={searchRef}
+                    className={styles.searchInput}
+                    placeholder="Buscar... ( / )"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    aria-label="Buscar entradas"
+                  />
+                  {searchQuery && (
+                    <button className={styles.searchClear} onClick={() => setSearchQuery('')} aria-label="Limpar busca">
+                      <i className="ti ti-x" aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {filtersOpen && (
+              <div className={styles.filterRow}>
+                <div className={styles.selectWrap}>
+                  <select
+                    className={styles.formSelect}
+                    value={filterProj}
+                    onChange={e => setFilterProj(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
+                    aria-label="Filtrar por projeto"
+                  >
+                    <option value="all">Todos os projetos</option>
+                    {projects.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                  <i className={`ti ti-chevron-down ${styles.selectIcon}`} aria-hidden="true" />
+                </div>
                 <input
-                  className={styles.searchInput}
-                  placeholder="Buscar..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  aria-label="Buscar entradas"
+                  type="date"
+                  className={styles.dateInput}
+                  value={filterFrom}
+                  max={filterTo || undefined}
+                  onChange={e => setFilterFrom(e.target.value)}
+                  aria-label="Data inicial"
                 />
-                {searchQuery && (
-                  <button className={styles.searchClear} onClick={() => setSearchQuery('')} aria-label="Limpar busca">
+                <span className={styles.filterSep}>até</span>
+                <input
+                  type="date"
+                  className={styles.dateInput}
+                  value={filterTo}
+                  min={filterFrom || undefined}
+                  onChange={e => setFilterTo(e.target.value)}
+                  aria-label="Data final"
+                />
+                {hasFilters && (
+                  <button className={styles.filterClear} onClick={clearFilters}>
                     <i className="ti ti-x" aria-hidden="true" />
+                    Limpar
                   </button>
                 )}
               </div>
-            </div>
+            )}
+
             {sortedDays.length === 0 ? (
               <div className={styles.noResults}>
                 <i className="ti ti-search-off" aria-hidden="true" />
-                Nenhum resultado para &ldquo;{searchQuery}&rdquo;
+                Nenhum resultado{q ? ` para “${searchQuery}”` : ''}
               </div>
             ) : (
-              sortedDays.map(day => (
-                <div className={styles.dayGroup} key={day}>
-                  <div className={styles.dayHeader}>
-                    <span className={styles.dayName}>{fmtDate(day)}</span>
-                    <span className={styles.dayTotal}>{fmtHoursDec(grouped[day].reduce((s, e) => s + e.dur, 0))}</span>
+              <>
+                {projTotals.length > 1 && (
+                  <div className={styles.breakdown}>
+                    <div className={styles.breakdownHead}>
+                      <span className={styles.breakdownTitle}>Por projeto</span>
+                      <span className={styles.breakdownSum}>{fmtHoursDec(breakdownTotal)}</span>
+                    </div>
+                    {projTotals.map(p => (
+                      <div key={p.id} className={styles.breakdownRow}>
+                        <span className={styles.breakdownName}>
+                          <span className={styles.breakdownDot} style={{ background: p.color }} aria-hidden="true" />
+                          {p.name}
+                        </span>
+                        <div className={styles.breakdownTrack}>
+                          <div
+                            className={styles.breakdownBar}
+                            style={{ width: `${(p.dur / breakdownMax) * 100}%`, background: p.color }}
+                          />
+                        </div>
+                        <span className={styles.breakdownVal}>{fmtHoursDec(p.dur)}</span>
+                      </div>
+                    ))}
                   </div>
-                  {grouped[day].map(entry => (
-                    <EntryRow
-                      key={entry.id}
-                      entry={entry}
-                      onEdit={startEdit}
-                      onDelete={deleteEntry}
-                      onResume={resumeEntry}
-                      onCopy={copyEntryHours}
-                    />
-                  ))}
-                </div>
-              ))
+                )}
+                {sortedDays.map(day => (
+                  <div className={styles.dayGroup} key={day}>
+                    <div className={styles.dayHeader}>
+                      <span className={styles.dayName}>{fmtDate(day)}</span>
+                      <span className={styles.dayTotal}>{fmtHoursDec(grouped[day].reduce((s, e) => s + e.dur, 0))}</span>
+                    </div>
+                    {grouped[day].map(entry => (
+                      <EntryRow
+                        key={entry.id}
+                        entry={entry}
+                        project={{ name: projName(entry.proj), color: projColor(entry.proj) }}
+                        editing={entry.id === editingId}
+                        onEdit={startEdit}
+                        onDelete={deleteEntry}
+                        onResume={resumeEntry}
+                        onCopy={copyEntryHours}
+                      />
+                    ))}
+                  </div>
+                ))}
+              </>
             )}
           </div>
         )}
@@ -836,6 +1475,13 @@ export default function App() {
             Entrada removida
           </span>
           <button className={styles.undoBtn} onClick={handleUndo}>Desfazer</button>
+        </div>
+      )}
+
+      {notice && (
+        <div className={styles.noticeToast} role="status">
+          <i className="ti ti-info-circle" aria-hidden="true" />
+          {notice}
         </div>
       )}
     </div>
