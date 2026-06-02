@@ -754,6 +754,26 @@ export default function App() {
   const clearFilters = () => { setFilterProj('all'); setFilterFrom(''); setFilterTo('') }
   const hasFilters = filterProj !== 'all' || filterFrom || filterTo
 
+  // intervalos de tempo fixos (atalhos)
+  const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x }
+  const presets = (() => {
+    const now = new Date()
+    const t = localDateStr(now)
+    const ws = addDays(now, -now.getDay()) // domingo da semana atual
+    return [
+      { key: 'hoje', label: 'Hoje', from: t, to: t },
+      { key: 'ontem', label: 'Ontem', from: localDateStr(addDays(now, -1)), to: localDateStr(addDays(now, -1)) },
+      { key: 'semana', label: 'Esta semana', from: localDateStr(ws), to: t },
+      { key: 'semana-ant', label: 'Semana passada', from: localDateStr(addDays(ws, -7)), to: localDateStr(addDays(ws, -1)) },
+      { key: '7d', label: 'Últimos 7 dias', from: localDateStr(addDays(now, -6)), to: t },
+      { key: '15d', label: 'Últimos 15 dias', from: localDateStr(addDays(now, -14)), to: t },
+      { key: '30d', label: 'Últimos 30 dias', from: localDateStr(addDays(now, -29)), to: t },
+      { key: 'mes', label: 'Este mês', from: localDateStr(new Date(now.getFullYear(), now.getMonth(), 1)), to: t },
+    ]
+  })()
+  const activePreset = presets.find(p => p.from === filterFrom && p.to === filterTo)?.key
+  const applyPreset = p => { setFilterFrom(p.from); setFilterTo(p.to) }
+
   // Manual entry
   const [showManual, setShowManual] = useState(false)
   const [mDate, setMDate] = useState(todayStr())
@@ -1409,7 +1429,20 @@ export default function App() {
             </div>
 
             {filtersOpen && (
-              <div className={styles.filterRow}>
+              <div className={styles.filterPanel}>
+                <div className={styles.filterPresets}>
+                  {presets.map(p => (
+                    <button
+                      key={p.key}
+                      type="button"
+                      className={`${styles.presetChip} ${activePreset === p.key ? styles.presetChipActive : ''}`}
+                      onClick={() => applyPreset(p)}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+                <div className={styles.filterRow}>
                 <div className={styles.selectWrap}>
                   <select
                     className={styles.formSelect}
@@ -1447,6 +1480,7 @@ export default function App() {
                     Limpar
                   </button>
                 )}
+                </div>
               </div>
             )}
 
