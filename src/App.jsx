@@ -482,7 +482,7 @@ export default function App() {
   useEffect(() => { saveStorage('tt_projects', projects) }, [projects])
 
   const projById = id => projects.find(p => p.id === id)
-  const projName = id => projById(id)?.name ?? 'Sem projeto'
+  const projName = id => projById(id)?.name ?? 'Sem categoria'
   const projColor = id => projById(id)?.color ?? FALLBACK_COLOR
 
   // Entries
@@ -628,7 +628,7 @@ export default function App() {
     }
   }
 
-  // ─── Projetos (CRUD) ──────────────────────────────────────────────────────
+  // ─── Categorias (CRUD) ──────────────────────────────────────────────────────
   const [projectsOpen, setProjectsOpen] = useState(false)
   const [newProjName, setNewProjName] = useState('')
   const [newProjColor, setNewProjColor] = useState(PALETTE[0])
@@ -643,16 +643,16 @@ export default function App() {
   const renameProject = (id, name) => setProjects(prev => prev.map(p => p.id === id ? { ...p, name } : p))
   const recolorProject = (id, color) => setProjects(prev => prev.map(p => p.id === id ? { ...p, color } : p))
   const deleteProject = id => {
-    if (projects.length <= 1) { showNotice('Mantenha ao menos um projeto'); return }
+    if (projects.length <= 1) { showNotice('Mantenha ao menos uma categoria'); return }
     const used = entries.some(e => e.proj === id)
-    if (used && !window.confirm('Há entradas neste projeto. Removê-lo deixa essas entradas sem projeto. Continuar?')) return
+    if (used && !window.confirm('Há entradas nesta categoria. Removê-la deixa essas entradas sem categoria. Continuar?')) return
     setProjects(prev => prev.filter(p => p.id !== id))
   }
 
   // ─── Backup (export / import) ─────────────────────────────────────────────
   const exportCsv = () => {
     if (entries.length === 0) { showNotice('Nada para exportar'); return }
-    const header = ['Data', 'Início', 'Fim', 'Duração (h)', 'Projeto', 'Descrição']
+    const header = ['Data', 'Início', 'Fim', 'Duração (h)', 'Categoria', 'Descrição']
     const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start))
     const lines = [header, ...sorted.map(e => [
       e.date, e.start, e.end, (e.dur / 3600).toFixed(2).replace('.', ','), projName(e.proj), e.desc,
@@ -680,7 +680,7 @@ export default function App() {
         showNotice('Backup não reconhecido')
         return
       }
-      if (!window.confirm('Importar substitui todos os dados atuais (entradas, tarefas e projetos). Continuar?')) return
+      if (!window.confirm('Importar substitui todos os dados atuais (entradas, tarefas e categorias). Continuar?')) return
       if (Array.isArray(data.projects) && data.projects.length) setProjects(data.projects)
       if (Array.isArray(data.entries)) setEntries(data.entries)
       if (Array.isArray(data.tasks)) setTasks(data.tasks)
@@ -920,7 +920,7 @@ export default function App() {
   }, {})
   const sortedDays = Object.keys(grouped).sort((a, b) => b.localeCompare(a))
 
-  // Breakdown por projeto (respeita filtros)
+  // Breakdown por categoria (respeita filtros)
   const projTotals = (() => {
     const map = new Map()
     filteredEntries.forEach(e => map.set(e.proj, (map.get(e.proj) || 0) + e.dur))
@@ -1057,7 +1057,7 @@ export default function App() {
                 <DateField value={mDate} onChange={setMDate} />
               </div>
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Projeto</label>
+                <label className={styles.formLabel}>Categoria</label>
                 <div className={styles.selectWrap}>
                   <select
                     className={styles.formSelect}
@@ -1128,7 +1128,7 @@ export default function App() {
           >
             <span className={styles.taskSectionTitle}>
               <i className="ti ti-folders" aria-hidden="true" />
-              Projetos
+              Categorias
             </span>
             <span className={styles.taskCountBadge}>{projects.length}</span>
             <i className={`ti ti-chevron-down ${styles.chevron}`} aria-hidden="true" />
@@ -1143,12 +1143,12 @@ export default function App() {
                       className={styles.projNameInput}
                       value={p.name}
                       onChange={e => renameProject(p.id, e.target.value)}
-                      aria-label="Nome do projeto"
+                      aria-label="Nome da categoria"
                     />
                     <button
                       className={styles.btnDel}
                       onClick={() => deleteProject(p.id)}
-                      aria-label="Remover projeto"
+                      aria-label="Remover categoria"
                       disabled={projects.length <= 1}
                     >
                       <i className="ti ti-trash" aria-hidden="true" />
@@ -1160,18 +1160,18 @@ export default function App() {
                 <ColorSwatch color={newProjColor} onChange={setNewProjColor} small />
                 <input
                   className={styles.taskAddInput}
-                  placeholder="Novo projeto..."
+                  placeholder="Nova categoria..."
                   value={newProjName}
                   onChange={e => setNewProjName(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addProject() } }}
-                  aria-label="Novo projeto"
+                  aria-label="Nova categoria"
                 />
                 <button
                   type="button"
                   className={styles.taskAddBtn}
                   onClick={addProject}
                   disabled={!newProjName.trim()}
-                  aria-label="Adicionar projeto"
+                  aria-label="Adicionar categoria"
                 >
                   <i className="ti ti-plus" aria-hidden="true" />
                 </button>
@@ -1448,9 +1448,9 @@ export default function App() {
                     className={styles.formSelect}
                     value={filterProj}
                     onChange={e => setFilterProj(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
-                    aria-label="Filtrar por projeto"
+                    aria-label="Filtrar por categoria"
                   >
-                    <option value="all">Todos os projetos</option>
+                    <option value="all">Todas as categorias</option>
                     {projects.map(p => (
                       <option key={p.id} value={p.id}>{p.name}</option>
                     ))}
@@ -1494,7 +1494,7 @@ export default function App() {
                 {projTotals.length > 1 && (
                   <div className={styles.breakdown}>
                     <div className={styles.breakdownHead}>
-                      <span className={styles.breakdownTitle}>Por projeto</span>
+                      <span className={styles.breakdownTitle}>Por categoria</span>
                       <span className={styles.breakdownSum}>{fmtHoursDec(breakdownTotal)}</span>
                     </div>
                     {projTotals.map(p => (
