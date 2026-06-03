@@ -26,7 +26,7 @@ export function ColaDaily({ cola, projects, today, timerActive, onStartTimer, on
   return (
     <section className={styles.colaCard}>
       <header className={styles.colaHead}>
-        <span className={styles.colaTitle}><i className="ti ti-clipboard-text" aria-hidden="true" />Cola do daily</span>
+        <span className={styles.colaTitle}><i className="ti ti-clipboard-text" aria-hidden="true" />Cola da daily</span>
       </header>
 
       {/* Fiz — último dia com registro */}

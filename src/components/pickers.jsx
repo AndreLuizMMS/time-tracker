@@ -133,8 +133,13 @@ export const TimeField = forwardRef(function TimeField({ value, onChange, onComp
     popRef.current.querySelectorAll(`.${styles.timeOptActive}`).forEach(el => el.scrollIntoView({ block: 'center' }))
   }, [open])
   const handleType = e => {
-    const d = e.target.value.replace(/\D/g, '').slice(0, 4)
-    setDraft(d.length > 2 ? `${d.slice(0, 2)}:${d.slice(2)}` : d)
+    const el = e.target
+    const d = el.value.replace(/\D/g, '').slice(0, 4)
+    const formatted = d.length > 2 ? `${d.slice(0, 2)}:${d.slice(2)}` : d
+    setDraft(formatted)
+    // o ":" auto-inserido empurra o cursor pra antes do dígito de minuto → próximo dígito entra na frente
+    // (03:1 + 0 = 03:01). força o cursor pro fim após o render p/ digitação sequencial correta.
+    requestAnimationFrame(() => { try { el.setSelectionRange(formatted.length, formatted.length) } catch {} })
     if (d.length === 4) {
       const hh = Math.min(23, parseInt(d.slice(0, 2), 10))
       const mm = Math.min(59, parseInt(d.slice(2, 4), 10))
@@ -263,7 +268,7 @@ export function StatusControl({ status, onToAberta, onToAguardando, onToConcluid
             <button type="button" role="menuitem" className={styles.statusOpt} onClick={() => pick(onToConcluida)}><i className="ti ti-check" aria-hidden="true" /> Concluir</button>
           </>)}
           {status === 'concluida' && (
-            <button type="button" role="menuitem" className={styles.statusOpt} onClick={() => pick(onReopen)}><i className="ti ti-rotate-ccw" aria-hidden="true" /> Reabrir</button>
+            <button type="button" role="menuitem" className={styles.statusOpt} onClick={() => pick(onReopen)}><i className="ti ti-rotate" aria-hidden="true" /> Reabrir</button>
           )}
         </PortalPop>
       )}

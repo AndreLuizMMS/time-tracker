@@ -152,7 +152,7 @@ export function ProjectColumn({ vm, categories, projects, today, timerActive, ac
                       <span className={`${styles.taskTitle} ${styles.taskTitleDone}`}>{t.title}</span>
                       <div className={styles.taskActions}>
                         <button className={styles.iconAction} onClick={() => actions.reopen(t.id)} aria-label="Reabrir" title="Reabrir">
-                          <i className="ti ti-rotate-ccw" aria-hidden="true" />
+                          <i className="ti ti-rotate" aria-hidden="true" />
                         </button>
                       </div>
                     </div>
