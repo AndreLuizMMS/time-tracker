@@ -458,15 +458,17 @@ function DataMenu({ onExportCsv, onExportJson, onImport }) {
             <i className="ti ti-upload" aria-hidden="true" />
             Importar backup
           </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="application/json,.json"
-            className={styles.hiddenFile}
-            onChange={e => { const f = e.target.files?.[0]; if (f) onImport(f); e.target.value = '' }}
-          />
         </div>
       )}
+      {/* input fora do {open && ...}: fechar o menu não pode desmontar o input
+          antes do onChange disparar, senão a importação some silenciosamente */}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="application/json,.json"
+        className={styles.hiddenFile}
+        onChange={e => { const f = e.target.files?.[0]; if (f) onImport(f); e.target.value = '' }}
+      />
     </div>
   )
 }
