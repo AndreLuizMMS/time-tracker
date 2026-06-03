@@ -105,18 +105,6 @@ function csvCell(v) {
 
 // ─── Components ─────────────────────────────────────────────────────────────
 
-function StatCard({ label, value, icon, primary }) {
-  return (
-    <div className={`${styles.statCard} ${primary ? styles.statCardPrimary : ''}`}>
-      <div className={styles.statLabel}>
-        <i className={`ti ${icon}`} aria-hidden="true" />
-        {label}
-      </div>
-      <div className={styles.statValue}>{value}</div>
-    </div>
-  )
-}
-
 function EntryRow({ entry, project, editing, onEdit, onDelete, onResume, onCopy }) {
   const [copied, setCopied] = useState(false)
 
@@ -138,37 +126,42 @@ function EntryRow({ entry, project, editing, onEdit, onDelete, onResume, onCopy 
       tabIndex={0}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onEdit(entry) } }}
     >
-      <span className={styles.entryDesc}>{entry.desc}</span>
-      <span className={styles.entryProj}>
-        <span className={styles.entryProjDot} aria-hidden="true" />
-        {project.name}
-      </span>
-      <span className={styles.entryRange}>{entry.start} – {entry.end}</span>
-      <span className={styles.entryDur}>{fmtHoursDec(entry.dur)}</span>
-      <div className={styles.entryActions}>
-        <button
-          className={styles.btnAction}
-          onClick={e => { e.stopPropagation(); onResume(entry) }}
-          aria-label="Retomar timer desta entrada"
-          title="Retomar timer"
-        >
-          <i className="ti ti-player-play-filled" aria-hidden="true" />
-        </button>
-        <button
-          className={`${styles.btnAction} ${copied ? styles.btnActionOk : ''}`}
-          onClick={handleCopy}
-          aria-label="Copiar horas desta entrada"
-          title={copied ? 'Copiado' : 'Copiar horas'}
-        >
-          <i className={`ti ${copied ? 'ti-check' : 'ti-copy'}`} aria-hidden="true" />
-        </button>
-        <button
-          className={styles.btnDel}
-          onClick={e => { e.stopPropagation(); onDelete(entry.id) }}
-          aria-label="Remover entrada"
-        >
-          <i className="ti ti-trash" aria-hidden="true" />
-        </button>
+      {/* [conceito: Linha em 2 níveis] descrição ocupa a linha inteira, sem corte */}
+      <div className={styles.entryTop}>
+        <span className={styles.entryDesc}>{entry.desc}</span>
+        <div className={styles.entryActions}>
+          <button
+            className={styles.btnAction}
+            onClick={e => { e.stopPropagation(); onResume(entry) }}
+            aria-label="Retomar timer desta entrada"
+            title="Retomar timer"
+          >
+            <i className="ti ti-player-play-filled" aria-hidden="true" />
+          </button>
+          <button
+            className={`${styles.btnAction} ${copied ? styles.btnActionOk : ''}`}
+            onClick={handleCopy}
+            aria-label="Copiar horas desta entrada"
+            title={copied ? 'Copiado' : 'Copiar horas'}
+          >
+            <i className={`ti ${copied ? 'ti-check' : 'ti-copy'}`} aria-hidden="true" />
+          </button>
+          <button
+            className={styles.btnDel}
+            onClick={e => { e.stopPropagation(); onDelete(entry.id) }}
+            aria-label="Remover entrada"
+          >
+            <i className="ti ti-trash" aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+      <div className={styles.entryMeta}>
+        <span className={styles.entryProj}>
+          <span className={styles.entryProjDot} aria-hidden="true" />
+          {project.name}
+        </span>
+        <span className={styles.entryRange}>{entry.start} – {entry.end}</span>
+        <span className={styles.entryDur}>{fmtHoursDec(entry.dur)}</span>
       </div>
     </div>
   )
@@ -695,7 +688,7 @@ export default function App() {
   const [tasks, setTasks] = useState(() => loadStorage('tt_tasks', []))
   const [taskInput, setTaskInput] = useState('')
   const [taskPriority, setTaskPriority] = useState(3)
-  const [tasksOpen, setTasksOpen] = useState(false)
+  const [tasksOpen, setTasksOpen] = useState(true)
   const [showDoneTasks, setShowDoneTasks] = useState(false)
   const [editingTaskId, setEditingTaskId] = useState(null)
   const [editingTaskText, setEditingTaskText] = useState('')
@@ -718,6 +711,10 @@ export default function App() {
   }))
   const cyclePriority = id => setTasks(prev =>
     prev.map(t => t.id === id ? { ...t, priority: t.priority === 4 ? 1 : t.priority + 1 } : t)
+  )
+  // marca/desmarca a tarefa como "foco de hoje" (expira sozinho ao virar o dia)
+  const toggleToday = id => setTasks(prev =>
+    prev.map(t => t.id === id ? { ...t, todayDate: t.todayDate === todayStr() ? null : todayStr() } : t)
   )
 
   const beginEditTask = task => { setEditingTaskId(task.id); setEditingTaskText(task.title) }
@@ -952,6 +949,30 @@ export default function App() {
     return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`
   }
 
+  // ── Cola do daily (somente leitura, derivado dos dados existentes) ──
+  // "Ontem fiz": último dia COM registro antes de hoje (resolve segunda/fim de semana),
+  // não o dia anterior literal. Entradas + tarefas concluídas nesse dia.
+  const litYesterday = localDateStr(addDays(new Date(), -1))
+  const lastDay = (() => {
+    const past = [...new Set(entries.map(e => e.date))].filter(d => d < today)
+    return past.length ? past.sort()[past.length - 1] : litYesterday
+  })()
+  const lastDayEntries = entries
+    .filter(e => e.date === lastDay)
+    .slice()
+    .sort((a, b) => a.start.localeCompare(b.start))
+  const lastDayTotal = lastDayEntries.reduce((s, e) => s + e.dur, 0)
+  const lastDayDone = doneByDay[lastDay] || []
+  const lastDayLabel = lastDay === litYesterday
+    ? 'Ontem'
+    : (() => {
+        const d = new Date(lastDay + 'T12:00:00')
+        return `${WEEKDAYS[d.getDay()]} ${d.getDate()}/${d.getMonth() + 1}`
+      })()
+
+  // "Hoje vou fazer": só as tarefas marcadas como foco de hoje (★).
+  const todayTasks = activeTasks.filter(t => t.todayDate === today)
+
   return (
     <div className={styles.layout}>
       <header className={styles.header}>
@@ -962,22 +983,35 @@ export default function App() {
             </span>
             <span>Time Tracker</span>
           </div>
+
+          {/* [conceito: Mesa de Comando] KPIs ao vivo no topo, espalhados na horizontal */}
+          <div className={styles.headerStats}>
+            <div className={`${styles.kpi} ${styles.kpiPrimary}`}>
+              <span className={styles.kpiLabel}>Hoje</span>
+              <span className={styles.kpiValue}>
+                {fmtHoursDec(timerActive ? todayTotal + timerElapsed : todayTotal)}
+              </span>
+            </div>
+            <span className={styles.kpiDivider} aria-hidden="true" />
+            <div className={styles.kpi}>
+              <span className={styles.kpiLabel}>Semana</span>
+              <span className={styles.kpiValue}>{fmtHoursDec(weekTotal)}</span>
+            </div>
+            <span className={styles.kpiDivider} aria-hidden="true" />
+            <div className={styles.kpi}>
+              <span className={styles.kpiLabel}>Total</span>
+              <span className={styles.kpiValue}>{fmtHoursDec(totalAll)}</span>
+            </div>
+          </div>
+
           <DataMenu onExportCsv={exportCsv} onExportJson={exportJson} onImport={importJson} />
         </div>
       </header>
 
       <main className={styles.main}>
-        {/* Stats */}
-        <div className={styles.sectionLabel} style={{ marginTop: 0 }}>Resumo</div>
-        <div className={styles.statsGrid}>
-          <StatCard label="Hoje" icon="ti-calendar-event" primary value={fmtHoursDec(timerActive ? todayTotal + timerElapsed : todayTotal)} />
-          <StatCard label="Semana" icon="ti-calendar-week" value={fmtHoursDec(weekTotal)} />
-          <StatCard label="Total" icon="ti-sum" value={fmtHoursDec(totalAll)} />
-        </div>
-
-        {/* Timer hero */}
-        <div className={`${styles.timerCard} ${timerActive ? styles.timerCardActive : ''}`}>
-          <div className={styles.timerInputs}>
+        {/* [conceito: Mesa de Comando] Timer hero em faixa horizontal — o tempo é o herói */}
+        <section className={`${styles.timerBand} ${timerActive ? styles.timerBandActive : ''}`}>
+          <div className={styles.timerBandFields}>
             <input
               className={styles.timerInput}
               placeholder="O que você está trabalhando?"
@@ -1013,26 +1047,122 @@ export default function App() {
               <TimeField value={timerStartStr} onChange={setTimerStartTime} />
             </div>
           )}
-          <div className={styles.timerHero}>
-            <div className={styles.timerReadout}>
-              {timerActive && <span className={styles.pulseDot} aria-hidden="true" />}
-              <span className={`${styles.timerDisplay} ${timerActive ? styles.timerActive : ''}`}>
-                {fmtDur(timerElapsed)}
-              </span>
-            </div>
-            <div className={styles.timerBtnWrap}>
-              <button
-                className={`${styles.btnPrimary} ${styles.btnTimer} ${timerActive ? styles.btnStop : ''}`}
-                onClick={timerActive ? stopTimer : startTimer}
-                title={timerActive ? 'Parar (Space)' : 'Iniciar (Space)'}
-              >
-                <i className={`ti ${timerActive ? 'ti-player-stop-filled' : 'ti-player-play-filled'}`} aria-hidden="true" />
-                {timerActive ? 'Parar' : 'Iniciar'}
-              </button>
-              <span className={styles.kbdHint}><kbd>Space</kbd></span>
-            </div>
+          <div className={styles.timerReadout}>
+            {timerActive && <span className={styles.pulseDot} aria-hidden="true" />}
+            <span className={`${styles.timerDisplay} ${timerActive ? styles.timerActive : ''}`}>
+              {fmtDur(timerElapsed)}
+            </span>
           </div>
-        </div>
+          <div className={styles.timerBtnWrap}>
+            <button
+              className={`${styles.btnPrimary} ${styles.btnTimer} ${timerActive ? styles.btnStop : ''}`}
+              onClick={timerActive ? stopTimer : startTimer}
+              title={timerActive ? 'Parar (Space)' : 'Iniciar (Space)'}
+            >
+              <i className={`ti ${timerActive ? 'ti-player-stop-filled' : 'ti-player-play-filled'}`} aria-hidden="true" />
+              {timerActive ? 'Parar' : 'Iniciar'}
+            </button>
+            <span className={styles.kbdHint}><kbd>Space</kbd></span>
+          </div>
+        </section>
+
+        {/* [conceito: Mesa de Comando] três zonas para os três problemas */}
+        <div className={styles.board}>
+
+          {/* ── Coluna: Cola do daily (resumo ontem / hoje) ── */}
+          <div className={styles.colCola}>
+            <section className={styles.colaCard}>
+              <header className={styles.colaHead}>
+                <span className={styles.colaTitle}>
+                  <i className="ti ti-clipboard-text" aria-hidden="true" />
+                  Cola do daily
+                </span>
+              </header>
+
+              {/* Ontem · fiz — último dia com registro */}
+              <div>
+                <div className={styles.colaBlockHead}>
+                  <span className={styles.colaBlockLabel}>
+                    <i className="ti ti-arrow-back-up" aria-hidden="true" />
+                    {lastDayLabel} · fiz
+                  </span>
+                  {lastDayTotal > 0 && (
+                    <span className={styles.colaBlockMeta}>{fmtHoursDec(lastDayTotal)}</span>
+                  )}
+                </div>
+                {lastDayEntries.length === 0 && lastDayDone.length === 0 ? (
+                  <p className={styles.colaEmpty}>Nada registrado ainda.</p>
+                ) : (
+                  <ul className={styles.colaList}>
+                    {lastDayEntries.map(e => (
+                      <li key={`e${e.id}`} className={styles.colaItem} style={{ '--cola-accent': projColor(e.proj) }}>
+                        <span className={styles.colaDot} aria-hidden="true" />
+                        <span className={styles.colaItemText}>{e.desc}</span>
+                        <span className={styles.colaItemMeta}>{fmtHoursDec(e.dur)}</span>
+                      </li>
+                    ))}
+                    {lastDayDone.map(t => (
+                      <li key={`t${t.id}`} className={`${styles.colaItem} ${styles.colaItemDone}`}>
+                        <span className={styles.colaCheck} aria-hidden="true"><i className="ti ti-check" /></span>
+                        <span className={styles.colaItemText}>{t.title}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div className={styles.colaDivider} aria-hidden="true" />
+
+              {/* Hoje · vou fazer — tarefas marcadas como foco (★) */}
+              <div>
+                <div className={styles.colaBlockHead}>
+                  <span className={styles.colaBlockLabel}>
+                    <i className="ti ti-arrow-forward-up" aria-hidden="true" />
+                    Hoje · vou fazer
+                  </span>
+                  {todayTasks.length > 0 && (
+                    <span className={styles.colaBlockMeta}>{todayTasks.length}</span>
+                  )}
+                </div>
+                {todayTasks.length === 0 ? (
+                  <p className={styles.colaEmpty}>
+                    Marque tarefas com <i className="ti ti-star" aria-hidden="true" /> pra montar o dia.
+                  </p>
+                ) : (
+                  <ul className={styles.colaList}>
+                    {todayTasks.map(t => (
+                      <li key={t.id} className={styles.colaItem} style={{ '--cola-accent': PRIORITY_COLORS[t.priority] }}>
+                        <span className={styles.colaDot} aria-hidden="true" />
+                        <span className={styles.colaItemText}>{t.title}</span>
+                        <div className={styles.colaActions}>
+                          <button
+                            className={`${styles.btnAction} ${styles.colaStartBtn}`}
+                            onClick={() => startTimerFromTask(t)}
+                            disabled={timerActive}
+                            aria-label={`Iniciar timer: ${t.title}`}
+                            title={timerActive ? 'Timer em andamento' : 'Iniciar timer'}
+                          >
+                            <i className="ti ti-player-play-filled" aria-hidden="true" />
+                          </button>
+                          <button
+                            className={styles.btnAction}
+                            onClick={() => toggleDone(t.id)}
+                            aria-label={`Concluir: ${t.title}`}
+                            title="Concluir"
+                          >
+                            <i className="ti ti-check" aria-hidden="true" />
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </section>
+          </div>
+
+          {/* ── Coluna: Entradas (registro do tempo) ── */}
+          <div className={styles.colEntradas}>
 
         {/* Manual entry toggle */}
         <button
@@ -1120,270 +1250,6 @@ export default function App() {
             </div>
           </form>
         )}
-
-        {/* Projects manager */}
-        <div className={styles.taskSection}>
-          <button
-            className={`${styles.taskSectionHeader} ${projectsOpen ? styles.taskSectionOpen : ''}`}
-            onClick={() => setProjectsOpen(o => !o)}
-            aria-expanded={projectsOpen}
-          >
-            <span className={styles.taskSectionTitle}>
-              <i className="ti ti-folders" aria-hidden="true" />
-              Categorias
-            </span>
-            <span className={styles.taskCountBadge}>{projects.length}</span>
-            <i className={`ti ti-chevron-down ${styles.chevron}`} aria-hidden="true" />
-          </button>
-          {projectsOpen && (
-            <div className={styles.taskBody}>
-              <div className={styles.projList}>
-                {projects.map(p => (
-                  <div key={p.id} className={styles.projRow}>
-                    <ColorSwatch color={p.color} onChange={c => recolorProject(p.id, c)} small />
-                    <input
-                      className={styles.projNameInput}
-                      value={p.name}
-                      onChange={e => renameProject(p.id, e.target.value)}
-                      aria-label="Nome da categoria"
-                    />
-                    <button
-                      className={styles.btnDel}
-                      onClick={() => deleteProject(p.id)}
-                      aria-label="Remover categoria"
-                      disabled={projects.length <= 1}
-                    >
-                      <i className="ti ti-trash" aria-hidden="true" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <div className={styles.projAddRow}>
-                <ColorSwatch color={newProjColor} onChange={setNewProjColor} small />
-                <input
-                  className={styles.taskAddInput}
-                  placeholder="Nova categoria..."
-                  value={newProjName}
-                  onChange={e => setNewProjName(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addProject() } }}
-                  aria-label="Nova categoria"
-                />
-                <button
-                  type="button"
-                  className={styles.taskAddBtn}
-                  onClick={addProject}
-                  disabled={!newProjName.trim()}
-                  aria-label="Adicionar categoria"
-                >
-                  <i className="ti ti-plus" aria-hidden="true" />
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Task Backlog */}
-        <div className={styles.taskSection}>
-          <button
-            className={`${styles.taskSectionHeader} ${tasksOpen ? styles.taskSectionOpen : ''}`}
-            onClick={() => setTasksOpen(o => !o)}
-            aria-expanded={tasksOpen}
-          >
-            <span className={styles.taskSectionTitle}>
-              <i className="ti ti-list-check" aria-hidden="true" />
-              Tarefas
-            </span>
-            {activeTasks.length > 0 && (
-              <span className={styles.taskCountBadge}>{activeTasks.length}</span>
-            )}
-            <i className={`ti ti-chevron-down ${styles.chevron}`} aria-hidden="true" />
-          </button>
-
-          {tasksOpen && (
-            <div className={styles.taskBody}>
-              <div className={styles.taskAddRow}>
-                <div className={styles.taskPriorityPicker}>
-                  {[1, 2, 3, 4].map(p => (
-                    <button
-                      key={p}
-                      type="button"
-                      className={`${styles.taskPriorityBtn} ${taskPriority === p ? styles.taskPriorityBtnActive : ''} ${styles[`priorityBtn${p}`]}`}
-                      onClick={() => setTaskPriority(p)}
-                      aria-label={`Prioridade P${p}`}
-                      title={PRIORITY_LABELS[p - 1]}
-                    >
-                      P{p}
-                    </button>
-                  ))}
-                </div>
-                <input
-                  ref={taskInputRef}
-                  className={styles.taskAddInput}
-                  placeholder="Adicionar tarefa..."
-                  value={taskInput}
-                  onChange={e => setTaskInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTask() } }}
-                  aria-label="Nova tarefa"
-                />
-                <button
-                  type="button"
-                  className={styles.taskAddBtn}
-                  onClick={addTask}
-                  disabled={!taskInput.trim()}
-                  aria-label="Adicionar tarefa"
-                >
-                  <i className="ti ti-plus" aria-hidden="true" />
-                </button>
-              </div>
-
-              {tasks.length === 0 && (
-                <p className={styles.taskEmpty}>Nenhuma tarefa. Adicione acima.</p>
-              )}
-
-              <div className={styles.taskList}>
-                {activeTasks.map(task => (
-                  <div
-                    key={task.id}
-                    className={styles.taskRow}
-                    style={{ '--task-priority-color': PRIORITY_COLORS[task.priority] }}
-                  >
-                    <button
-                      className={`${styles.taskBadge} ${styles[`priorityBadge${task.priority}`]}`}
-                      onClick={() => cyclePriority(task.id)}
-                      aria-label={`Prioridade P${task.priority} — clique para mudar`}
-                      title="Clique para mudar prioridade"
-                    >
-                      P{task.priority}
-                    </button>
-                    {editingTaskId === task.id ? (
-                      <input
-                        className={styles.taskEditInput}
-                        value={editingTaskText}
-                        onChange={e => setEditingTaskText(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') { e.preventDefault(); commitEditTask() }
-                          if (e.key === 'Escape') { setEditingTaskId(null); setEditingTaskText('') }
-                        }}
-                        onBlur={commitEditTask}
-                        autoFocus
-                        aria-label="Editar tarefa"
-                      />
-                    ) : (
-                      <span
-                        className={styles.taskTitle}
-                        onDoubleClick={() => beginEditTask(task)}
-                        title="Duplo clique para editar"
-                      >
-                        {task.title}
-                      </span>
-                    )}
-                    <div className={styles.taskActions}>
-                      <button
-                        className={`${styles.btnAction} ${styles.taskStartBtn}`}
-                        onClick={() => startTimerFromTask(task)}
-                        disabled={timerActive}
-                        aria-label="Iniciar timer com esta tarefa"
-                        title={timerActive ? 'Timer em andamento' : 'Iniciar timer'}
-                      >
-                        <i className="ti ti-player-play-filled" aria-hidden="true" />
-                        <span className={styles.taskStartLabel}>Iniciar</span>
-                      </button>
-                      <button
-                        className={styles.btnAction}
-                        onClick={() => beginEditTask(task)}
-                        aria-label="Editar tarefa"
-                        title="Editar"
-                      >
-                        <i className="ti ti-pencil" aria-hidden="true" />
-                      </button>
-                      <button
-                        className={styles.btnAction}
-                        onClick={() => toggleDone(task.id)}
-                        aria-label="Marcar como concluída"
-                        title="Concluir"
-                      >
-                        <i className="ti ti-check" aria-hidden="true" />
-                      </button>
-                      <button
-                        className={styles.btnDel}
-                        onClick={() => deleteTask(task.id)}
-                        aria-label="Remover tarefa"
-                      >
-                        <i className="ti ti-trash" aria-hidden="true" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {doneTasks.length > 0 && (
-                <div className={styles.doneSection}>
-                  <button
-                    className={`${styles.doneHeader} ${showDoneTasks ? styles.doneHeaderOpen : ''}`}
-                    onClick={() => setShowDoneTasks(o => !o)}
-                    aria-expanded={showDoneTasks}
-                  >
-                    <span className={styles.doneHeaderTitle}>
-                      <i className="ti ti-circle-check-filled" aria-hidden="true" />
-                      Concluídas
-                    </span>
-                    <span className={styles.doneHeaderCount}>{doneTasks.length}</span>
-                    <i className={`ti ti-chevron-down ${styles.chevron}`} aria-hidden="true" />
-                  </button>
-
-                  {showDoneTasks && (
-                    <div className={styles.doneBody}>
-                      {doneDays.map(day => (
-                        <div key={day} className={styles.doneGroup}>
-                          <div className={styles.doneDayHeader}>
-                            <span className={styles.doneDayName}>{fmtDate(day)}</span>
-                            <span className={styles.doneDayCount}>
-                              {doneByDay[day].length} tarefa{doneByDay[day].length !== 1 ? 's' : ''}
-                            </span>
-                          </div>
-                          <div className={styles.taskList}>
-                            {doneByDay[day].map(task => (
-                              <div
-                                key={task.id}
-                                className={`${styles.taskRow} ${styles.doneRow}`}
-                                style={{ '--task-priority-color': PRIORITY_COLORS[task.priority] }}
-                              >
-                                <span className={styles.doneCheck} aria-hidden="true">
-                                  <i className="ti ti-check" />
-                                </span>
-                                <span className={`${styles.taskTitle} ${styles.doneTitle}`}>{task.title}</span>
-                                {task.completedAt && (
-                                  <span className={styles.doneTime}>{fmtTime(task.completedAt)}</span>
-                                )}
-                                <div className={styles.taskActions}>
-                                  <button
-                                    className={styles.btnAction}
-                                    onClick={() => toggleDone(task.id)}
-                                    aria-label="Reabrir tarefa"
-                                    title="Reabrir"
-                                  >
-                                    <i className="ti ti-rotate-ccw" aria-hidden="true" />
-                                  </button>
-                                  <button
-                                    className={styles.btnDel}
-                                    onClick={() => deleteTask(task.id)}
-                                    aria-label="Remover tarefa"
-                                  >
-                                    <i className="ti ti-trash" aria-hidden="true" />
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
 
         {/* Entries */}
         {entries.length === 0 ? (
@@ -1540,6 +1406,287 @@ export default function App() {
             )}
           </div>
         )}
+          </div>{/* /colEntradas */}
+
+          {/* ── Coluna: Tarefas + Categorias ── */}
+          <div className={styles.colTarefas}>
+
+        {/* Task Backlog */}
+        <div className={styles.taskSection}>
+          <button
+            className={`${styles.taskSectionHeader} ${tasksOpen ? styles.taskSectionOpen : ''}`}
+            onClick={() => setTasksOpen(o => !o)}
+            aria-expanded={tasksOpen}
+          >
+            <span className={styles.taskSectionTitle}>
+              <i className="ti ti-list-check" aria-hidden="true" />
+              Tarefas
+            </span>
+            {activeTasks.length > 0 && (
+              <span className={styles.taskCountBadge}>{activeTasks.length}</span>
+            )}
+            <i className={`ti ti-chevron-down ${styles.chevron}`} aria-hidden="true" />
+          </button>
+
+          {tasksOpen && (
+            <div className={styles.taskBody}>
+              <div className={styles.taskAddRow}>
+                <div className={styles.taskPriorityPicker}>
+                  {[1, 2, 3, 4].map(p => (
+                    <button
+                      key={p}
+                      type="button"
+                      className={`${styles.taskPriorityBtn} ${taskPriority === p ? styles.taskPriorityBtnActive : ''} ${styles[`priorityBtn${p}`]}`}
+                      onClick={() => setTaskPriority(p)}
+                      aria-label={`Prioridade P${p}`}
+                      title={PRIORITY_LABELS[p - 1]}
+                    >
+                      P{p}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  ref={taskInputRef}
+                  className={styles.taskAddInput}
+                  placeholder="Adicionar tarefa..."
+                  value={taskInput}
+                  onChange={e => setTaskInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTask() } }}
+                  aria-label="Nova tarefa"
+                />
+                <button
+                  type="button"
+                  className={styles.taskAddBtn}
+                  onClick={addTask}
+                  disabled={!taskInput.trim()}
+                  aria-label="Adicionar tarefa"
+                >
+                  <i className="ti ti-plus" aria-hidden="true" />
+                </button>
+              </div>
+
+              {tasks.length === 0 && (
+                <p className={styles.taskEmpty}>Nenhuma tarefa. Adicione acima.</p>
+              )}
+
+              <div className={styles.taskList}>
+                {activeTasks.map(task => (
+                  <div
+                    key={task.id}
+                    className={styles.taskRow}
+                    style={{ '--task-priority-color': PRIORITY_COLORS[task.priority] }}
+                  >
+                    <button
+                      className={`${styles.taskBadge} ${styles[`priorityBadge${task.priority}`]}`}
+                      onClick={() => cyclePriority(task.id)}
+                      aria-label={`Prioridade P${task.priority} — clique para mudar`}
+                      title="Clique para mudar prioridade"
+                    >
+                      P{task.priority}
+                    </button>
+                    {editingTaskId === task.id ? (
+                      <input
+                        className={styles.taskEditInput}
+                        value={editingTaskText}
+                        onChange={e => setEditingTaskText(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') { e.preventDefault(); commitEditTask() }
+                          if (e.key === 'Escape') { setEditingTaskId(null); setEditingTaskText('') }
+                        }}
+                        onBlur={commitEditTask}
+                        autoFocus
+                        aria-label="Editar tarefa"
+                      />
+                    ) : (
+                      <span
+                        className={styles.taskTitle}
+                        onDoubleClick={() => beginEditTask(task)}
+                        title="Duplo clique para editar"
+                      >
+                        {task.title}
+                      </span>
+                    )}
+                    <div className={styles.taskActions}>
+                      <button
+                        className={`${styles.btnAction} ${styles.taskTodayBtn} ${task.todayDate === today ? styles.taskTodayBtnActive : ''}`}
+                        onClick={() => toggleToday(task.id)}
+                        aria-label={task.todayDate === today ? 'Remover do foco de hoje' : 'Marcar como foco de hoje'}
+                        aria-pressed={task.todayDate === today}
+                        title={task.todayDate === today ? 'No foco de hoje' : 'Marcar pra hoje'}
+                      >
+                        <i className={`ti ${task.todayDate === today ? 'ti-star-filled' : 'ti-star'}`} aria-hidden="true" />
+                      </button>
+                      <button
+                        className={`${styles.btnAction} ${styles.taskStartBtn}`}
+                        onClick={() => startTimerFromTask(task)}
+                        disabled={timerActive}
+                        aria-label="Iniciar timer com esta tarefa"
+                        title={timerActive ? 'Timer em andamento' : 'Iniciar timer'}
+                      >
+                        <i className="ti ti-player-play-filled" aria-hidden="true" />
+                        <span className={styles.taskStartLabel}>Iniciar</span>
+                      </button>
+                      <button
+                        className={styles.btnAction}
+                        onClick={() => beginEditTask(task)}
+                        aria-label="Editar tarefa"
+                        title="Editar"
+                      >
+                        <i className="ti ti-pencil" aria-hidden="true" />
+                      </button>
+                      <button
+                        className={styles.btnAction}
+                        onClick={() => toggleDone(task.id)}
+                        aria-label="Marcar como concluída"
+                        title="Concluir"
+                      >
+                        <i className="ti ti-check" aria-hidden="true" />
+                      </button>
+                      <button
+                        className={styles.btnDel}
+                        onClick={() => deleteTask(task.id)}
+                        aria-label="Remover tarefa"
+                      >
+                        <i className="ti ti-trash" aria-hidden="true" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {doneTasks.length > 0 && (
+                <div className={styles.doneSection}>
+                  <button
+                    className={`${styles.doneHeader} ${showDoneTasks ? styles.doneHeaderOpen : ''}`}
+                    onClick={() => setShowDoneTasks(o => !o)}
+                    aria-expanded={showDoneTasks}
+                  >
+                    <span className={styles.doneHeaderTitle}>
+                      <i className="ti ti-circle-check-filled" aria-hidden="true" />
+                      Concluídas
+                    </span>
+                    <span className={styles.doneHeaderCount}>{doneTasks.length}</span>
+                    <i className={`ti ti-chevron-down ${styles.chevron}`} aria-hidden="true" />
+                  </button>
+
+                  {showDoneTasks && (
+                    <div className={styles.doneBody}>
+                      {doneDays.map(day => (
+                        <div key={day} className={styles.doneGroup}>
+                          <div className={styles.doneDayHeader}>
+                            <span className={styles.doneDayName}>{fmtDate(day)}</span>
+                            <span className={styles.doneDayCount}>
+                              {doneByDay[day].length} tarefa{doneByDay[day].length !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                          <div className={styles.taskList}>
+                            {doneByDay[day].map(task => (
+                              <div
+                                key={task.id}
+                                className={`${styles.taskRow} ${styles.doneRow}`}
+                                style={{ '--task-priority-color': PRIORITY_COLORS[task.priority] }}
+                              >
+                                <span className={styles.doneCheck} aria-hidden="true">
+                                  <i className="ti ti-check" />
+                                </span>
+                                <span className={`${styles.taskTitle} ${styles.doneTitle}`}>{task.title}</span>
+                                {task.completedAt && (
+                                  <span className={styles.doneTime}>{fmtTime(task.completedAt)}</span>
+                                )}
+                                <div className={styles.taskActions}>
+                                  <button
+                                    className={styles.btnAction}
+                                    onClick={() => toggleDone(task.id)}
+                                    aria-label="Reabrir tarefa"
+                                    title="Reabrir"
+                                  >
+                                    <i className="ti ti-rotate-ccw" aria-hidden="true" />
+                                  </button>
+                                  <button
+                                    className={styles.btnDel}
+                                    onClick={() => deleteTask(task.id)}
+                                    aria-label="Remover tarefa"
+                                  >
+                                    <i className="ti ti-trash" aria-hidden="true" />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Projects manager */}
+        <div className={styles.taskSection}>
+          <button
+            className={`${styles.taskSectionHeader} ${projectsOpen ? styles.taskSectionOpen : ''}`}
+            onClick={() => setProjectsOpen(o => !o)}
+            aria-expanded={projectsOpen}
+          >
+            <span className={styles.taskSectionTitle}>
+              <i className="ti ti-folders" aria-hidden="true" />
+              Categorias
+            </span>
+            <span className={styles.taskCountBadge}>{projects.length}</span>
+            <i className={`ti ti-chevron-down ${styles.chevron}`} aria-hidden="true" />
+          </button>
+          {projectsOpen && (
+            <div className={styles.taskBody}>
+              <div className={styles.projList}>
+                {projects.map(p => (
+                  <div key={p.id} className={styles.projRow}>
+                    <ColorSwatch color={p.color} onChange={c => recolorProject(p.id, c)} small />
+                    <input
+                      className={styles.projNameInput}
+                      value={p.name}
+                      onChange={e => renameProject(p.id, e.target.value)}
+                      aria-label="Nome da categoria"
+                    />
+                    <button
+                      className={styles.btnDel}
+                      onClick={() => deleteProject(p.id)}
+                      aria-label="Remover categoria"
+                      disabled={projects.length <= 1}
+                    >
+                      <i className="ti ti-trash" aria-hidden="true" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className={styles.projAddRow}>
+                <ColorSwatch color={newProjColor} onChange={setNewProjColor} small />
+                <input
+                  className={styles.taskAddInput}
+                  placeholder="Nova categoria..."
+                  value={newProjName}
+                  onChange={e => setNewProjName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addProject() } }}
+                  aria-label="Nova categoria"
+                />
+                <button
+                  type="button"
+                  className={styles.taskAddBtn}
+                  onClick={addProject}
+                  disabled={!newProjName.trim()}
+                  aria-label="Adicionar categoria"
+                >
+                  <i className="ti ti-plus" aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+          </div>{/* /colTarefas */}
+
+        </div>{/* /board */}
       </main>
 
       {undoState && (
