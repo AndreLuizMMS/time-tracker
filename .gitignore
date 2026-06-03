@@ -3,3 +3,15 @@ dist
 .vercel
 *.log
 .DS_Store
+
+# build temp / SSR artifacts
+_ssr_tmp*
+
+# screenshots e imagens soltas
+*.png
+
+# backups de dados
+time-tracker-backup-*.json
+
+# WSL alternate data stream
+*:Zone.Identifier
