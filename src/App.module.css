@@ -2016,10 +2016,23 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 9px;
+  width: 100%;
+  margin-bottom: 5px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  transition: background var(--transition-fast) ease, border-color var(--transition-fast) ease, opacity var(--transition-fast) ease;
 }
 
 .breakdownRow:last-child { margin-bottom: 0; }
+.breakdownRowActive { background: var(--surface-2); border-color: var(--border-strong); }
+.breakdownRowDim { opacity: 0.5; }
+
+@media (hover: hover) and (pointer: fine) {
+  .breakdownRow:hover { background: var(--surface-2); opacity: 1; }
+}
 
 .breakdownName {
   display: inline-flex;
@@ -2435,8 +2448,10 @@
 .projectsRow::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: var(--radius-full); }
 
 .projectCard {
-  flex: 0 0 340px;
-  width: 340px;
+  /* expandidas crescem igualmente p/ preencher a largura total (dinâmico por contagem);
+     min 300px garante leitura — se não couberem, o row rola horizontalmente */
+  flex: 1 1 300px;
+  min-width: 300px;
   display: flex;
   flex-direction: column;
   background: var(--surface);
@@ -2445,7 +2460,8 @@
   border-radius: var(--radius-lg);
   overflow: hidden;
 }
-.projectCardCollapsed { flex-basis: 240px; width: 240px; }
+/* recolhidas ficam compactas e não esticam */
+.projectCardCollapsed { flex: 0 0 240px; min-width: 240px; }
 
 .projectHead {
   display: flex;
@@ -2886,4 +2902,24 @@
 /* ─── Empilhamento desktop estreito (sem mobile) ─────── */
 @media (max-width: 1080px) {
   .lower { grid-template-columns: 1fr; }
+}
+
+/* toggle global recolher/expandir todos os projetos */
+.collapseAll {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  transition: color var(--transition-fast) ease, border-color var(--transition-fast) ease, background var(--transition-fast) ease;
+}
+.collapseAll i { font-size: 15px; }
+@media (hover: hover) and (pointer: fine) {
+  .collapseAll:hover { color: var(--text-primary); border-color: var(--border-strong); background: var(--surface-3); }
 }

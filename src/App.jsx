@@ -211,8 +211,13 @@ export default function App() {
   const [editingEntry, setEditingEntry] = useState(null)
   const [projectsManagerOpen, setProjectsManagerOpen] = useState(false)
   const [categoriesManagerOpen, setCategoriesManagerOpen] = useState(false)
-  const startEdit = entry => { setEditingEntry(entry); setShowManual(true); window.scrollTo({ top: 0, behavior: 'smooth' }) }
+  const manualRef = useRef(null)
+  const startEdit = entry => { setEditingEntry(entry); setShowManual(true) }
   const closeManual = () => { setShowManual(false); setEditingEntry(null) }
+  // ao editar, traz o formulário pro campo de visão suavemente (sem pular pro topo absoluto)
+  useEffect(() => {
+    if (showManual && editingEntry) manualRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [showManual, editingEntry])
   const saveManual = data => {
     setEntries(prev => {
       const next = data.id != null
@@ -279,11 +284,14 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [filterProject, setFilterProject] = useState('all')
+  const [filterCategory, setFilterCategory] = useState('all') // 'all' | number | null (Sem categoria)
   const [filterFrom, setFilterFrom] = useState('')
   const [filterTo, setFilterTo] = useState('')
   const searchRef = useRef(null)
-  const clearFilters = () => { setFilterProject('all'); setFilterFrom(''); setFilterTo('') }
-  const hasFilters = filterProject !== 'all' || filterFrom || filterTo
+  const clearFilters = () => { setFilterProject('all'); setFilterCategory('all'); setFilterFrom(''); setFilterTo('') }
+  const hasFilters = filterProject !== 'all' || filterCategory !== 'all' || filterFrom || filterTo
+  // clica na barra do breakdown → filtra por aquela categoria (toggle)
+  const toggleCategoryFilter = id => setFilterCategory(prev => (prev === id ? 'all' : id))
   const presets = useMemo(() => {
     const now = new Date(); const t = localDateStr(now); const ws = addDays(now, -now.getDay())
     return [
@@ -338,25 +346,29 @@ export default function App() {
   const projectVMs = useMemo(() => buildProjectView(projects, tasks, entries, today, periodRange.from, periodRange.to), [projects, tasks, entries, today, periodRange])
   const cola = useMemo(() => buildCola(tasks, entries, today), [tasks, entries, today])
   const hiddenCount = projects.filter(p => p.hidden).length
+  const allCollapsed = projectVMs.length > 0 && projectVMs.every(vm => vm.project.collapsed)
+  const toggleAllCollapsed = () => setProjects(prev => prev.map(p => (p.hidden ? p : { ...p, collapsed: !allCollapsed })))
 
   // ── Entradas: filtro + agrupamento + breakdown por categoria ──
   const q = searchQuery.toLowerCase().trim()
-  const filteredEntries = entries.filter(e => {
+  // base = tudo menos o filtro de categoria → mantém TODAS as barras do breakdown visíveis/clicáveis
+  const baseFiltered = entries.filter(e => {
     if (q && !e.desc.toLowerCase().includes(q)) return false
     if (filterProject !== 'all' && e.projectId !== filterProject) return false
     if (filterFrom && e.date < filterFrom) return false
     if (filterTo && e.date > filterTo) return false
     return true
   })
+  const filteredEntries = filterCategory === 'all' ? baseFiltered : baseFiltered.filter(e => e.categoryId === filterCategory)
   const grouped = filteredEntries.reduce((acc, e) => { (acc[e.date] = acc[e.date] || []).push(e); return acc }, {})
   const sortedDays = Object.keys(grouped).sort((a, b) => b.localeCompare(a))
   const catTotals = useMemo(() => {
     const map = new Map()
-    filteredEntries.forEach(e => map.set(e.categoryId, (map.get(e.categoryId) || 0) + e.dur))
+    baseFiltered.forEach(e => map.set(e.categoryId, (map.get(e.categoryId) || 0) + e.dur))
     const arr = [...map.entries()].map(([id, dur]) => ({ id, dur, name: catName(id), color: catById(id)?.color ?? FALLBACK_COLOR }))
     arr.sort((a, b) => b.dur - a.dur)
     return arr
-  }, [filteredEntries]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [baseFiltered]) // eslint-disable-line react-hooks/exhaustive-deps
   const breakdownMax = catTotals[0]?.dur || 1
   const breakdownTotal = catTotals.reduce((s, p) => s + p.dur, 0)
 
@@ -400,6 +412,12 @@ export default function App() {
         <section className={styles.projectsZone}>
           <div className={styles.projectsZoneHead}>
             <span className={styles.sectionLabel} style={{ marginBottom: 0 }}>Projetos</span>
+            {projectVMs.length > 0 && (
+              <button type="button" className={styles.collapseAll} onClick={toggleAllCollapsed} title={allCollapsed ? 'Expandir todos' : 'Recolher todos'}>
+                <i className={`ti ${allCollapsed ? 'ti-chevrons-down' : 'ti-chevrons-up'}`} aria-hidden="true" />
+                {allCollapsed ? 'Expandir todos' : 'Recolher todos'}
+              </button>
+            )}
             <div className={styles.periodToggle}>
               {['hoje', 'semana', 'total'].map(p => (
                 <button key={p} type="button" className={`${styles.periodBtn} ${period === p ? styles.periodBtnActive : ''}`} onClick={() => setPeriod(p)}>{p}</button>
@@ -438,8 +456,10 @@ export default function App() {
             </button>
 
             {showManual && (
-              <ManualEntryForm key={editingEntry?.id ?? 'new'} editing={editingEntry} projects={projects} categories={categories}
-                defaultProjectId={lastProjectId} defaultCategoryId={lastCategoryId} entries={entries} onSave={saveManual} onCancel={closeManual} />
+              <div ref={manualRef}>
+                <ManualEntryForm key={editingEntry?.id ?? 'new'} editing={editingEntry} projects={projects} categories={categories}
+                  defaultProjectId={lastProjectId} defaultCategoryId={lastCategoryId} entries={entries} onSave={saveManual} onCancel={closeManual} />
+              </div>
             )}
 
             {entries.length === 0 ? (
@@ -479,6 +499,14 @@ export default function App() {
                         </select>
                         <i className={`ti ti-chevron-down ${styles.selectIcon}`} aria-hidden="true" />
                       </div>
+                      <div className={styles.selectWrap}>
+                        <select className={styles.formSelect} value={filterCategory === 'all' ? 'all' : filterCategory === null ? '__none__' : filterCategory} onChange={e => { const v = e.target.value; setFilterCategory(v === 'all' ? 'all' : v === '__none__' ? null : Number(v)) }} aria-label="Filtrar por categoria">
+                          <option value="all">Todas as categorias</option>
+                          {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          <option value="__none__">Sem categoria</option>
+                        </select>
+                        <i className={`ti ti-chevron-down ${styles.selectIcon}`} aria-hidden="true" />
+                      </div>
                       <input type="date" className={styles.dateInput} value={filterFrom} max={filterTo || undefined} onChange={e => setFilterFrom(e.target.value)} aria-label="Data inicial" />
                       <span className={styles.filterSep}>até</span>
                       <input type="date" className={styles.dateInput} value={filterTo} min={filterFrom || undefined} onChange={e => setFilterTo(e.target.value)} aria-label="Data final" />
@@ -495,11 +523,17 @@ export default function App() {
                       <div className={styles.breakdown}>
                         <div className={styles.breakdownHead}><span className={styles.breakdownTitle}>Por categoria</span><span className={styles.breakdownSum}>{fmtHoursDec(breakdownTotal)}</span></div>
                         {catTotals.map(p => (
-                          <div key={p.id ?? 'none'} className={styles.breakdownRow}>
+                          <button
+                            key={p.id ?? 'none'}
+                            type="button"
+                            className={`${styles.breakdownRow} ${filterCategory === p.id ? styles.breakdownRowActive : ''} ${filterCategory !== 'all' && filterCategory !== p.id ? styles.breakdownRowDim : ''}`}
+                            onClick={() => toggleCategoryFilter(p.id)}
+                            title={filterCategory === p.id ? 'Remover filtro' : `Ver atividades de ${p.name}`}
+                          >
                             <span className={styles.breakdownName}><span className={styles.breakdownDot} style={{ background: p.color }} aria-hidden="true" />{p.name}</span>
                             <div className={styles.breakdownTrack}><div className={styles.breakdownBar} style={{ width: `${(p.dur / breakdownMax) * 100}%`, background: p.color }} /></div>
                             <span className={styles.breakdownVal}>{fmtHoursDec(p.dur)}</span>
-                          </div>
+                          </button>
                         ))}
                       </div>
                     )}
