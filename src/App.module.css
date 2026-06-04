@@ -1583,7 +1583,8 @@
   .taskRow:hover { border-color: var(--border-strong); }
 }
 
-.taskRowDone { opacity: 0.5; }
+.taskRowDone { opacity: 0.5; transition: opacity var(--transition-fast) ease; }
+.taskRowDone:hover { opacity: 0.9; }
 
 .taskBadge {
   display: inline-flex;
@@ -2687,8 +2688,31 @@
   display: flex;
   align-items: flex-start;
   gap: 8px;
+  position: relative;
 }
 .taskTop .taskTitle { align-self: center; }
+
+/* ações do card só aparecem no hover/foco — não roubam a largura do título */
+.taskTop .taskActions {
+  position: absolute;
+  top: 0;
+  right: 0;
+  gap: 2px;
+  padding-left: 20px;
+  background: linear-gradient(to right, transparent, var(--surface) 18px);
+  opacity: 0;
+  transform: translateX(4px);
+  pointer-events: none;
+  transition: opacity var(--transition-fast) ease, transform var(--transition-fast) ease;
+}
+.taskRow:hover .taskTop .taskActions,
+.taskRow:focus-within .taskTop .taskActions {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+.taskTop .taskActions .iconAction { width: 26px; height: 26px; }
+.taskTop .taskActions .iconAction i { font-size: 15px; }
 .taskMeta {
   display: flex;
   align-items: center;
