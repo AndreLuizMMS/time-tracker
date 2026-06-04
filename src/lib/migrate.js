@@ -19,6 +19,7 @@ export function normEntry(e) {
     dur: e.dur,
     projectId: e.projectId ?? GERAL_ID,
     categoryId: e.categoryId ?? e.proj ?? null,
+    taskId: e.taskId ?? null,
   }
 }
 
@@ -31,6 +32,7 @@ export function normTask(t) {
     projectId: t.projectId ?? GERAL_ID,
     categoryId: t.categoryId ?? null,
     priority: t.priority ?? PRIORITY_DEFAULT,
+    blocking: t.blocking ?? false,
     status,
     waitingPerson: status === 'aguardando' ? (t.waitingPerson ?? null) : null,
     waitingSince: status === 'aguardando' ? (t.waitingSince ?? null) : null,

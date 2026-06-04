@@ -28,6 +28,13 @@
   flex-wrap: wrap;
 }
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .logo {
   display: flex;
   align-items: center;
@@ -110,6 +117,44 @@
 }
 
 .kpiPrimary .kpiValue { color: var(--primary-accent); }
+
+/* ─── Meta diária (feito / meta + %) ─────────────────── */
+.kpiGoal { min-width: 168px; }
+.kpiGoal .kpiValue { display: flex; align-items: baseline; gap: 6px; }
+.kpiGoalTarget {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-tertiary);
+  letter-spacing: 0;
+}
+.kpiGoalPct {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.kpiGoalPct i { font-size: 13px; color: var(--success); }
+.goalBar {
+  margin-top: 7px;
+  height: 4px;
+  width: 100%;
+  border-radius: var(--radius-full);
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.goalBarFill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--primary);
+  transition: width var(--transition-normal) var(--ease-out);
+}
+.kpiGoalMet .goalBarFill { background: var(--success); }
+.kpiGoalMet .kpiGoalPct { color: var(--success); }
 
 .kpiDivider {
   width: 1px;
@@ -2234,6 +2279,70 @@
 
 .noticeToast i { font-size: 16px; color: var(--info); }
 
+/* ─── Help / atalhos (modal) ─────────────────────────── */
+.helpOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+  animation: cardIn var(--transition-fast) var(--ease-out);
+}
+.helpModal {
+  width: 100%;
+  max-width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 18px;
+  animation: popIn var(--transition-normal) var(--ease-out);
+}
+.helpHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.helpTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.helpTitle i { color: var(--primary); font-size: 18px; }
+.helpList { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.helpRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 6px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+.helpRow:nth-child(odd) { background: var(--surface-2); }
+.helpKbd {
+  flex-shrink: 0;
+  min-width: 56px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 3px 8px;
+}
+
 /* ════════════════════════════════════════════════════════════════════════════
    COCKPIT v2 — radar transversal + visão por projeto ("denso porém calmo")
    ════════════════════════════════════════════════════════════════════════════ */
@@ -2585,6 +2694,56 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+/* ─── Tempo consumido + bloqueante (tarefa) ──────────── */
+.taskTimeBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: var(--radius-full);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.taskTimeBadge i { font-size: 13px; color: var(--text-tertiary); }
+.taskTimeBadgeRunning { color: var(--primary-accent); background: rgba(29,158,117,0.12); }
+.taskTimeBadgeRunning i { color: var(--primary-accent); }
+
+.taskBlockingBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: var(--radius-full);
+  background: rgba(226,75,74,0.12);
+  border: 1px solid color-mix(in srgb, var(--error) 35%, transparent);
+  color: var(--error);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.taskBlockingBadge i { font-size: 12px; }
+
+.iconActionBlocking { color: var(--error); border-color: color-mix(in srgb, var(--error) 40%, transparent); background: rgba(226,75,74,0.12); }
+
+.taskRowBlocking { border-color: color-mix(in srgb, var(--error) 30%, var(--border)); }
+
+.doneDate {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ─── Priority picker (seleção direta) ───────────────── */

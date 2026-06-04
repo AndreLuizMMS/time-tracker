@@ -105,6 +105,38 @@
   }
 }
 
+/* ── Manual theme override (data-theme on <html> beats the OS media query) ── */
+:root[data-theme="light"] {
+  --bg:             var(--neutral-50);
+  --surface:        var(--neutral-0);
+  --surface-2:      var(--neutral-100);
+  --surface-3:      var(--neutral-200);
+  --border:         rgba(0,0,0,0.09);
+  --border-strong:  rgba(0,0,0,0.18);
+  --text-primary:   var(--neutral-950);
+  --text-secondary: var(--neutral-600);
+  --text-tertiary:  var(--neutral-500);
+  --primary:        var(--primary-500);
+  --primary-accent: var(--primary-600);
+  --primary-hover:  var(--primary-700);
+  --on-primary:     var(--neutral-0);
+}
+:root[data-theme="dark"] {
+  --bg:             var(--neutral-950);
+  --surface:        var(--neutral-900);
+  --surface-2:      var(--neutral-800);
+  --surface-3:      var(--neutral-700);
+  --border:         rgba(255,255,255,0.08);
+  --border-strong:  rgba(255,255,255,0.16);
+  --text-primary:   #f1efe8;
+  --text-secondary: var(--neutral-300);
+  --text-tertiary:  var(--neutral-400);
+  --primary:        var(--primary-500);
+  --primary-accent: var(--primary-400);
+  --primary-hover:  var(--primary-400);
+  --on-primary:     var(--neutral-950);
+}
+
 html, body {
   background: var(--bg);
   color: var(--text-primary);

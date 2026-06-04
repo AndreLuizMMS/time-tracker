@@ -9,12 +9,14 @@ import {
   loadStorage, saveStorage, parseProjectId,
 } from './lib/storage'
 import { bootstrapState, importData } from './lib/migrate'
-import { buildRadar, buildProjectView, buildCola } from './lib/selectors'
+import { buildRadar, buildProjectView, buildCola, buildTaskSecs, taskSignals } from './lib/selectors'
 import { TimerBar } from './components/TimerBar'
 import { RadarBar } from './components/RadarBar'
 import { ProjectColumn } from './components/ProjectColumn'
 import { ColaDaily } from './components/ColaDaily'
 import { EntryRow, DataMenu, ManualEntryForm, ProjectsManager, CategoriesManager } from './components/managers'
+
+const DAILY_GOAL_SECS = 8 * 3600 // meta diária: 8h de trabalho
 
 export default function App() {
   // boot único (migra v1→v2 se preciso, idempotente)
@@ -40,15 +42,30 @@ export default function App() {
   const prefs0 = loadStorage('tt_prefs', null)
   const [lastProjectId, setLastProjectId] = useState(prefs0?.projectId ?? GERAL_ID)
   const [lastCategoryId, setLastCategoryId] = useState(prefs0?.categoryId ?? boot.categories[0]?.id ?? null)
-  useEffect(() => { saveStorage('tt_prefs', { projectId: lastProjectId, categoryId: lastCategoryId }) }, [lastProjectId, lastCategoryId])
+  const [theme, setTheme] = useState(prefs0?.theme ?? 'auto') // auto | light | dark
+  const [period, setPeriod] = useState(prefs0?.period ?? 'semana')
+  useEffect(() => { saveStorage('tt_prefs', { projectId: lastProjectId, categoryId: lastCategoryId, theme, period }) }, [lastProjectId, lastCategoryId, theme, period])
+  useEffect(() => {
+    const el = document.documentElement
+    if (theme === 'auto') el.removeAttribute('data-theme'); else el.dataset.theme = theme
+  }, [theme])
+  const cycleTheme = () => setTheme(t => (t === 'auto' ? 'light' : t === 'light' ? 'dark' : 'auto'))
+  const themeIcon = theme === 'light' ? 'ti-sun' : theme === 'dark' ? 'ti-moon' : 'ti-device-desktop'
+  const themeLabel = theme === 'light' ? 'claro' : theme === 'dark' ? 'escuro' : 'automático'
   const rememberCapture = (projectId, categoryId) => { setLastProjectId(projectId); setLastCategoryId(categoryId) }
 
   // ── toast / undo ──
   const [notice, setNotice] = useState(null)
   const noticeRef = useRef(null)
   const showNotice = msg => { clearTimeout(noticeRef.current); setNotice(msg); noticeRef.current = setTimeout(() => setNotice(null), 2600) }
-  const [undoState, setUndoState] = useState(null)
+  const [undoState, setUndoState] = useState(null) // { label, restore }
   const undoTimerRef = useRef(null)
+  const pushUndo = (label, restore) => {
+    clearTimeout(undoTimerRef.current)
+    setUndoState({ label, restore })
+    undoTimerRef.current = setTimeout(() => setUndoState(null), 4500)
+  }
+  const [showHelp, setShowHelp] = useState(false)
 
   // ── Timer ──
   const savedTimer = useState(() => loadStorage(KEYS.timer, null))[0]
@@ -59,10 +76,11 @@ export default function App() {
   const [timerProject, setTimerProject] = useState(savedTimer?.active ? (savedTimer.projectId ?? GERAL_ID) : (prefs0?.projectId ?? GERAL_ID))
   const [timerCategory, setTimerCategory] = useState(savedTimer?.active ? (savedTimer.categoryId ?? null) : (prefs0?.categoryId ?? boot.categories[0]?.id ?? null))
   const [timerResumeId, setTimerResumeId] = useState(savedTimer?.active ? (savedTimer.resumeId ?? null) : null)
+  const [timerTaskId, setTimerTaskId] = useState(savedTimer?.active ? (savedTimer.taskId ?? null) : null)
   const tickRef = useRef(null)
 
   const persistTimer = patch => saveStorage(KEYS.timer, {
-    active: true, start: timerStart, desc: timerDesc, projectId: timerProject, categoryId: timerCategory, resumeId: timerResumeId, ...patch,
+    active: true, start: timerStart, desc: timerDesc, projectId: timerProject, categoryId: timerCategory, resumeId: timerResumeId, taskId: timerTaskId, ...patch,
   })
 
   useEffect(() => {
@@ -79,13 +97,13 @@ export default function App() {
 
   const startTimer = () => {
     const s = Date.now()
-    setTimerStart(s); setTimerActive(true); setTimerElapsed(0)
-    saveStorage(KEYS.timer, { active: true, start: s, desc: timerDesc, projectId: timerProject, categoryId: timerCategory, resumeId: null })
+    setTimerStart(s); setTimerActive(true); setTimerElapsed(0); setTimerTaskId(null)
+    saveStorage(KEYS.timer, { active: true, start: s, desc: timerDesc, projectId: timerProject, categoryId: timerCategory, resumeId: null, taskId: null })
   }
 
   const stopTimer = () => {
     if (timerElapsed < 1) {
-      setTimerActive(false); setTimerElapsed(0); setTimerResumeId(null)
+      setTimerActive(false); setTimerElapsed(0); setTimerResumeId(null); setTimerTaskId(null)
       saveStorage(KEYS.timer, { active: false }); showNotice('Timer muito curto — descartado'); return
     }
     const startDate = new Date(timerStart)
@@ -101,33 +119,39 @@ export default function App() {
     } else {
       const entry = {
         id: Date.now(), date: dateStr, desc: timerDesc || 'Sem descrição',
-        projectId: timerProject, categoryId: timerCategory,
+        projectId: timerProject, categoryId: timerCategory, taskId: timerTaskId,
         start: secsToTime(startSecs), end: secsToTime(endSecs), dur: timerElapsed,
       }
       setEntries(e => [entry, ...e])
     }
     rememberCapture(timerProject, timerCategory)
-    setTimerActive(false); setTimerElapsed(0); setTimerDesc(''); setTimerResumeId(null)
+    setTimerActive(false); setTimerElapsed(0); setTimerDesc(''); setTimerResumeId(null); setTimerTaskId(null)
     saveStorage(KEYS.timer, { active: false })
   }
 
+  const discardTimer = () => {
+    setTimerActive(false); setTimerElapsed(0); setTimerResumeId(null); setTimerTaskId(null)
+    saveStorage(KEYS.timer, { active: false })
+    showNotice('Timer descartado')
+  }
+
   const resumeEntry = entry => {
-    if (timerActive) return
+    if (timerActive) { showNotice('Pare o timer atual primeiro'); return }
     const s = Date.now() - entry.dur * 1000
     setTimerDesc(entry.desc === 'Sem descrição' ? '' : entry.desc)
-    setTimerProject(entry.projectId); setTimerCategory(entry.categoryId); setTimerResumeId(entry.id)
+    setTimerProject(entry.projectId); setTimerCategory(entry.categoryId); setTimerResumeId(entry.id); setTimerTaskId(entry.taskId ?? null)
     setTimerStart(s); setTimerElapsed(entry.dur); setTimerActive(true)
-    saveStorage(KEYS.timer, { active: true, start: s, desc: entry.desc, projectId: entry.projectId, categoryId: entry.categoryId, resumeId: entry.id })
+    saveStorage(KEYS.timer, { active: true, start: s, desc: entry.desc, projectId: entry.projectId, categoryId: entry.categoryId, resumeId: entry.id, taskId: entry.taskId ?? null })
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const startTimerFromTask = task => {
-    if (timerActive) return
+    if (timerActive) { showNotice('Pare o timer atual primeiro'); return }
     const s = Date.now()
     const cat = task.categoryId ?? lastCategoryId
     setTimerDesc(task.title); setTimerProject(task.projectId); setTimerCategory(cat)
-    setTimerStart(s); setTimerActive(true); setTimerElapsed(0); setTimerResumeId(null)
-    saveStorage(KEYS.timer, { active: true, start: s, desc: task.title, projectId: task.projectId, categoryId: cat, resumeId: null })
+    setTimerStart(s); setTimerActive(true); setTimerElapsed(0); setTimerResumeId(null); setTimerTaskId(task.id)
+    saveStorage(KEYS.timer, { active: true, start: s, desc: task.title, projectId: task.projectId, categoryId: cat, resumeId: null, taskId: task.id })
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -154,12 +178,18 @@ export default function App() {
 
   const addTask = (projectId, title) => setTasks(prev => [...prev, {
     id: Date.now(), title, projectId, categoryId: lastCategoryId ?? null,
-    priority: PRIORITY_DEFAULT, status: 'aberta', waitingPerson: null, waitingSince: null,
+    priority: PRIORITY_DEFAULT, blocking: false, status: 'aberta', waitingPerson: null, waitingSince: null,
     todayDate: null, deadline: null, createdAt: Date.now(), completedAt: null,
   }])
-  const removeTask = id => setTasks(prev => prev.filter(t => t.id !== id))
+  const removeTask = id => {
+    const task = tasks.find(t => t.id === id)
+    if (!task) return
+    setTasks(prev => prev.filter(t => t.id !== id))
+    pushUndo('Tarefa removida', () => setTasks(prev => [...prev, task]))
+  }
   const commitTitle = (id, title) => updateTask(id, { title })
   const setPriority = (id, priority) => updateTask(id, { priority })
+  const toggleBlocking = id => updateTask(id, t => ({ blocking: !t.blocking }))
   const toggleFocus = id => updateTask(id, t => ({ todayDate: t.todayDate === today ? null : today }))
   const setDeadline = (id, deadline) => updateTask(id, { deadline })
   const setTaskCategory = (id, categoryId) => { updateTask(id, { categoryId }); if (categoryId != null) setLastCategoryId(categoryId) }
@@ -171,7 +201,7 @@ export default function App() {
   const reopen = id => updateTask(id, { status: 'aberta', completedAt: null, waitingSince: null, waitingPerson: null })
 
   const taskActions = {
-    setPriority, toAberta, toAguardando, toConcluida, reopen,
+    setPriority, toggleBlocking, toAberta, toAguardando, toConcluida, reopen,
     setWaitingPerson, setDeadline, toggleFocus, setProject: setTaskProject, setCategory: setTaskCategory,
     startTimer: startTimerFromTask, remove: removeTask, commitTitle,
   }
@@ -232,21 +262,19 @@ export default function App() {
 
   const deleteEntry = id => {
     if (editingEntry?.id === id) closeManual()
-    const idx = entries.findIndex(x => x.id === id)
-    const entry = entries[idx]
-    clearTimeout(undoTimerRef.current)
-    setUndoState({ entry, index: idx })
-    undoTimerRef.current = setTimeout(() => setUndoState(null), 4500)
+    const entry = entries.find(x => x.id === id)
+    if (!entry) return
     setEntries(e => e.filter(x => x.id !== id))
+    pushUndo('Entrada removida', () => setEntries(prev => {
+      const next = [...prev, entry]
+      next.sort((a, b) => b.date.localeCompare(a.date) || b.start.localeCompare(a.start))
+      return next
+    }))
   }
   const handleUndo = () => {
     clearTimeout(undoTimerRef.current)
     if (!undoState) return
-    setEntries(prev => {
-      const next = [...prev, undoState.entry]
-      next.sort((a, b) => b.date.localeCompare(a.date) || b.start.localeCompare(a.start))
-      return next
-    })
+    undoState.restore()
     setUndoState(null)
   }
 
@@ -312,15 +340,21 @@ export default function App() {
     toggleTimer: () => { if (timerActive) stopTimer(); else startTimer() },
     toggleManual: () => { if (showManual) closeManual(); else { setEditingEntry(null); setShowManual(true); window.scrollTo({ top: 0, behavior: 'smooth' }) } },
     focusSearch: () => searchRef.current?.focus(),
+    focusTaskSearch: () => taskSearchRef.current?.focus(),
+    toggleHelp: () => setShowHelp(h => !h),
+    closeOverlays: () => setShowHelp(false),
   }
   useEffect(() => {
     const onKey = e => {
+      if (e.key === 'Escape') { actionsRef.current.closeOverlays(); return }
       if (e.metaKey || e.ctrlKey || e.altKey) return
       const tag = document.activeElement?.tagName
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(tag) || document.activeElement?.isContentEditable) return
       if (e.key === ' ') { e.preventDefault(); actionsRef.current.toggleTimer() }
       else if (e.key === 'm' || e.key === 'M') { e.preventDefault(); actionsRef.current.toggleManual() }
+      else if (e.key === 't' || e.key === 'T') { e.preventDefault(); actionsRef.current.focusTaskSearch() }
       else if (e.key === '/') { e.preventDefault(); actionsRef.current.focusSearch() }
+      else if (e.key === '?') { e.preventDefault(); actionsRef.current.toggleHelp() }
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
@@ -331,9 +365,12 @@ export default function App() {
   const weekStartStr = localDateStr(addDays(new Date(), -new Date().getDay()))
   const weekTotal = entries.filter(e => e.date >= weekStartStr).reduce((s, e) => s + e.dur, 0)
   const totalAll = entries.reduce((s, e) => s + e.dur, 0)
+  // meta diária de 8h — feito / meta + porcentagem
+  const todayLive = timerActive ? todayTotal + timerElapsed : todayTotal
+  const goalPct = Math.round((todayLive / DAILY_GOAL_SECS) * 100)
+  const goalMet = todayLive >= DAILY_GOAL_SECS
 
-  // ── Period (visão por projeto) ──
-  const [period, setPeriod] = useState('semana')
+  // ── Period (visão por projeto) — estado em prefs (declarado acima) ──
   const periodRange = useMemo(() => {
     const now = new Date(); const t = localDateStr(now)
     if (period === 'hoje') return { from: t, to: t, label: 'hoje' }
@@ -341,9 +378,40 @@ export default function App() {
     return { from: localDateStr(addDays(now, -now.getDay())), to: t, label: 'na semana' }
   }, [period])
 
+  // ── Busca + filtros de tarefa (visão por projeto) ──
+  const [taskSearch, setTaskSearch] = useState('')
+  const [taskFiltersOpen, setTaskFiltersOpen] = useState(false)
+  const [taskFilterStatus, setTaskFilterStatus] = useState('all')     // all | aberta | aguardando | concluida
+  const [taskFilterCategory, setTaskFilterCategory] = useState('all') // all | number | null (Sem categoria)
+  const [taskFilterDeadline, setTaskFilterDeadline] = useState('all') // all | overdue | today | has | none
+  const [taskFilterBlocking, setTaskFilterBlocking] = useState(false)
+  const taskSearchRef = useRef(null)
+  const hasTaskFilters = taskFilterStatus !== 'all' || taskFilterCategory !== 'all' || taskFilterDeadline !== 'all' || taskFilterBlocking
+  const clearTaskFilters = () => { setTaskFilterStatus('all'); setTaskFilterCategory('all'); setTaskFilterDeadline('all'); setTaskFilterBlocking(false) }
+  const taskFilterActive = taskSearch.trim() !== '' || hasTaskFilters
+  const tq = taskSearch.toLowerCase().trim()
+  const filteredTasks = useMemo(() => tasks.filter(t => {
+    if (tq && !t.title.toLowerCase().includes(tq)) return false
+    if (taskFilterStatus !== 'all' && t.status !== taskFilterStatus) return false
+    if (taskFilterCategory !== 'all' && t.categoryId !== taskFilterCategory) return false
+    if (taskFilterBlocking && !t.blocking) return false
+    if (taskFilterDeadline !== 'all') {
+      const ds = taskSignals(t, today).deadlineState
+      if (taskFilterDeadline === 'overdue' && ds !== 'overdue') return false
+      if (taskFilterDeadline === 'today' && ds !== 'today') return false
+      if (taskFilterDeadline === 'has' && t.deadline == null) return false
+      if (taskFilterDeadline === 'none' && t.deadline != null) return false
+    }
+    return true
+  }), [tasks, tq, taskFilterStatus, taskFilterCategory, taskFilterDeadline, taskFilterBlocking, today])
+
   // ── Derived selectors ──
   const radar = useMemo(() => buildRadar(tasks, today), [tasks, today])
-  const projectVMs = useMemo(() => buildProjectView(projects, tasks, entries, today, periodRange.from, periodRange.to), [projects, tasks, entries, today, periodRange])
+  const taskSecs = useMemo(() => buildTaskSecs(entries), [entries])
+  const projectVMs = useMemo(() => buildProjectView(projects, filteredTasks, entries, today, periodRange.from, periodRange.to, { includePastCompleted: taskFilterActive }), [projects, filteredTasks, entries, today, periodRange, taskFilterActive])
+  const visibleVMs = taskFilterActive
+    ? projectVMs.filter(vm => vm.abertas.length || vm.aguardando.length || vm.concluidasHoje.length || vm.concluidasPassadas.length)
+    : projectVMs
   const cola = useMemo(() => buildCola(tasks, entries, today), [tasks, entries, today])
   const hiddenCount = projects.filter(p => p.hidden).length
   const allCollapsed = projectVMs.length > 0 && projectVMs.every(vm => vm.project.collapsed)
@@ -381,16 +449,30 @@ export default function App() {
             <span>Time Tracker</span>
           </div>
           <div className={styles.headerStats}>
-            <div className={`${styles.kpi} ${styles.kpiPrimary}`}>
-              <span className={styles.kpiLabel}>Hoje</span>
-              <span className={styles.kpiValue}>{fmtHoursDec(timerActive ? todayTotal + timerElapsed : todayTotal)}</span>
+            <div className={`${styles.kpi} ${styles.kpiPrimary} ${styles.kpiGoal} ${goalMet ? styles.kpiGoalMet : ''}`}>
+              <span className={styles.kpiLabel}>Hoje · meta {fmtHoursDec(DAILY_GOAL_SECS)}</span>
+              <span className={styles.kpiValue}>
+                {fmtHoursDec(todayLive)}<span className={styles.kpiGoalTarget}> / {fmtHoursDec(DAILY_GOAL_SECS)}</span>
+                <span className={styles.kpiGoalPct}>{goalMet && <i className="ti ti-circle-check" aria-hidden="true" />}{goalPct}%</span>
+              </span>
+              <div className={styles.goalBar} role="progressbar" aria-valuenow={Math.min(100, goalPct)} aria-valuemin={0} aria-valuemax={100} aria-label="Progresso da meta diária">
+                <div className={styles.goalBarFill} style={{ width: `${Math.min(100, goalPct)}%` }} />
+              </div>
             </div>
             <span className={styles.kpiDivider} aria-hidden="true" />
             <div className={styles.kpi}><span className={styles.kpiLabel}>Semana</span><span className={styles.kpiValue}>{fmtHoursDec(weekTotal)}</span></div>
             <span className={styles.kpiDivider} aria-hidden="true" />
             <div className={styles.kpi}><span className={styles.kpiLabel}>Total</span><span className={styles.kpiValue}>{fmtHoursDec(totalAll)}</span></div>
           </div>
-          <DataMenu onExportCsv={exportCsv} onExportJson={exportJson} onImport={importJson} />
+          <div className={styles.headerActions}>
+            <button type="button" className={styles.iconBtn} onClick={cycleTheme} aria-label={`Tema: ${themeLabel}`} title={`Tema: ${themeLabel} (clique p/ alternar)`}>
+              <i className={`ti ${themeIcon}`} aria-hidden="true" />
+            </button>
+            <button type="button" className={styles.iconBtn} onClick={() => setShowHelp(true)} aria-label="Atalhos de teclado" title="Atalhos de teclado (?)">
+              <i className="ti ti-keyboard" aria-hidden="true" />
+            </button>
+            <DataMenu onExportCsv={exportCsv} onExportJson={exportJson} onImport={importJson} />
+          </div>
         </div>
       </header>
 
@@ -402,7 +484,7 @@ export default function App() {
           onDescChange={v => { setTimerDesc(v); if (timerActive) persistTimer({ desc: v }) }}
           onProjectChange={v => { setTimerProject(v); if (timerActive) persistTimer({ projectId: v }) }}
           onCategoryChange={v => { setTimerCategory(v); if (timerActive) persistTimer({ categoryId: v }) }}
-          onStart={startTimer} onStop={stopTimer} onStartTimeChange={setTimerStartTime}
+          onStart={startTimer} onStop={stopTimer} onDiscard={discardTimer} onStartTimeChange={setTimerStartTime}
         />
 
         <RadarBar radar={radar} projById={projById} today={today} timerActive={timerActive}
@@ -428,14 +510,68 @@ export default function App() {
                 <i className="ti ti-eye" aria-hidden="true" />{hiddenCount} oculto{hiddenCount > 1 ? 's' : ''}
               </button>
             )}
+            <div className={styles.entriesTools} style={{ marginLeft: 'auto' }}>
+              <button className={`${styles.filterToggle} ${taskFiltersOpen || hasTaskFilters ? styles.filterToggleOn : ''}`} onClick={() => setTaskFiltersOpen(o => !o)} aria-label="Filtros de tarefa" aria-expanded={taskFiltersOpen} title="Filtros de tarefa">
+                <i className="ti ti-filter" aria-hidden="true" />{hasTaskFilters && <span className={styles.filterDot} aria-hidden="true" />}
+              </button>
+              <div className={styles.searchBar}>
+                <i className="ti ti-search" aria-hidden="true" />
+                <input ref={taskSearchRef} className={styles.searchInput} placeholder="Buscar tarefa..." value={taskSearch} onChange={e => setTaskSearch(e.target.value)} aria-label="Buscar tarefas" />
+                {taskSearch && <button className={styles.searchClear} onClick={() => setTaskSearch('')} aria-label="Limpar busca"><i className="ti ti-x" aria-hidden="true" /></button>}
+              </div>
+            </div>
           </div>
-          <div className={styles.projectsRow}>
-            {projectVMs.map(vm => (
-              <ProjectColumn key={vm.project.id} vm={vm} categories={categories} projects={projects} today={today}
-                timerActive={timerActive} actions={taskActions} periodLabel={periodRange.label}
-                onToggleCollapse={toggleCollapseProject} onQuickAdd={addTask} />
-            ))}
-          </div>
+
+          {taskFiltersOpen && (
+            <div className={styles.filterPanel}>
+              <div className={styles.filterRow}>
+                <div className={styles.selectWrap}>
+                  <select className={styles.formSelect} value={taskFilterStatus} onChange={e => setTaskFilterStatus(e.target.value)} aria-label="Filtrar por status">
+                    <option value="all">Todos os status</option>
+                    <option value="aberta">Aberta</option>
+                    <option value="aguardando">Aguardando</option>
+                    <option value="concluida">Concluída</option>
+                  </select>
+                  <i className={`ti ti-chevron-down ${styles.selectIcon}`} aria-hidden="true" />
+                </div>
+                <div className={styles.selectWrap}>
+                  <select className={styles.formSelect} value={taskFilterCategory === 'all' ? 'all' : taskFilterCategory === null ? '__none__' : taskFilterCategory} onChange={e => { const v = e.target.value; setTaskFilterCategory(v === 'all' ? 'all' : v === '__none__' ? null : Number(v)) }} aria-label="Filtrar por categoria">
+                    <option value="all">Todas as categorias</option>
+                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    <option value="__none__">Sem categoria</option>
+                  </select>
+                  <i className={`ti ti-chevron-down ${styles.selectIcon}`} aria-hidden="true" />
+                </div>
+                <div className={styles.selectWrap}>
+                  <select className={styles.formSelect} value={taskFilterDeadline} onChange={e => setTaskFilterDeadline(e.target.value)} aria-label="Filtrar por prazo">
+                    <option value="all">Qualquer prazo</option>
+                    <option value="overdue">Vencidas</option>
+                    <option value="today">Vence hoje</option>
+                    <option value="has">Com prazo</option>
+                    <option value="none">Sem prazo</option>
+                  </select>
+                  <i className={`ti ti-chevron-down ${styles.selectIcon}`} aria-hidden="true" />
+                </div>
+                <button type="button" className={`${styles.presetChip} ${taskFilterBlocking ? styles.presetChipActive : ''}`} onClick={() => setTaskFilterBlocking(b => !b)} aria-pressed={taskFilterBlocking}>
+                  <i className="ti ti-alert-octagon" aria-hidden="true" /> Só bloqueantes
+                </button>
+                {hasTaskFilters && <button className={styles.filterClear} onClick={clearTaskFilters}><i className="ti ti-x" aria-hidden="true" />Limpar</button>}
+              </div>
+            </div>
+          )}
+
+          {visibleVMs.length === 0 ? (
+            <p className={styles.projectEmpty}>{taskFilterActive ? 'Nenhuma tarefa encontrada.' : 'Sem projetos.'}</p>
+          ) : (
+            <div className={styles.projectsRow}>
+              {visibleVMs.map(vm => (
+                <ProjectColumn key={vm.project.id} vm={vm} categories={categories} projects={projects} today={today}
+                  timerActive={timerActive} actions={taskActions} periodLabel={periodRange.label}
+                  secsByTask={taskSecs} timerTaskId={timerTaskId} timerElapsed={timerElapsed}
+                  onToggleCollapse={toggleCollapseProject} onQuickAdd={addTask} />
+              ))}
+            </div>
+          )}
         </section>
 
         {/* ── Zona inferior: cola + gerenciadores | entradas ── */}
@@ -562,12 +698,35 @@ export default function App() {
 
       {undoState && (
         <div className={styles.undoToast} role="status">
-          <span className={styles.undoMsg}><i className="ti ti-trash" aria-hidden="true" />Entrada removida</span>
+          <span className={styles.undoMsg}><i className="ti ti-trash" aria-hidden="true" />{undoState.label}</span>
           <button className={styles.undoBtn} onClick={handleUndo}>Desfazer</button>
         </div>
       )}
       {notice && (
         <div className={styles.noticeToast} role="status"><i className="ti ti-info-circle" aria-hidden="true" />{notice}</div>
+      )}
+
+      {showHelp && (
+        <div className={styles.helpOverlay} role="dialog" aria-modal="true" aria-label="Atalhos de teclado" onClick={() => setShowHelp(false)}>
+          <div className={styles.helpModal} onClick={e => e.stopPropagation()}>
+            <div className={styles.helpHead}>
+              <span className={styles.helpTitle}><i className="ti ti-keyboard" aria-hidden="true" />Atalhos de teclado</span>
+              <button type="button" className={styles.iconBtn} onClick={() => setShowHelp(false)} aria-label="Fechar"><i className="ti ti-x" aria-hidden="true" /></button>
+            </div>
+            <ul className={styles.helpList}>
+              {[
+                ['Espaço', 'Iniciar / parar o timer'],
+                ['M', 'Adicionar horário manual'],
+                ['T', 'Buscar tarefas'],
+                ['/', 'Buscar entradas'],
+                ['?', 'Mostrar esta ajuda'],
+                ['Esc', 'Fechar ajuda / popovers'],
+              ].map(([k, d]) => (
+                <li key={k} className={styles.helpRow}><kbd className={styles.helpKbd}>{k}</kbd><span>{d}</span></li>
+              ))}
+            </ul>
+          </div>
+        </div>
       )}
     </div>
   )

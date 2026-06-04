@@ -54,8 +54,15 @@ export function buildRadar(tasks, today) {
   return { atrasadas, aguardando, foco, isEmpty: !atrasadas.length && !aguardando.length && !foco.length }
 }
 
+// soma de segundos por taskId (entradas vinculadas a uma tarefa)
+export function buildTaskSecs(entries) {
+  const map = new Map()
+  for (const e of entries) if (e.taskId != null) map.set(e.taskId, (map.get(e.taskId) || 0) + e.dur)
+  return map
+}
+
 // visão por projeto — VM por projeto (ocultos fora; Geral por último)
-export function buildProjectView(projects, tasks, entries, today, from, to) {
+export function buildProjectView(projects, tasks, entries, today, from, to, { includePastCompleted = false } = {}) {
   const ordered = projects
     .filter(p => !p.hidden)
     .sort((a, b) => (a.id === GERAL_ID ? 1 : 0) - (b.id === GERAL_ID ? 1 : 0))
@@ -70,10 +77,15 @@ export function buildProjectView(projects, tasks, entries, today, from, to) {
     const concluidasHoje = pTasks.filter(
       t => t.status === 'concluida' && t.completedAt && localDateStr(new Date(t.completedAt)) === today
     )
+    const concluidasPassadas = includePastCompleted
+      ? pTasks
+          .filter(t => t.status === 'concluida' && t.completedAt && localDateStr(new Date(t.completedAt)) < today)
+          .sort((a, b) => b.completedAt - a.completedAt)
+      : []
     const periodSecs = entries
       .filter(e => e.projectId === p.id && (!from || e.date >= from) && (!to || e.date <= to))
       .reduce((s, e) => s + e.dur, 0)
-    return { project: p, abertas, aguardando, concluidasHoje, periodSecs, openCount: abertas.length }
+    return { project: p, abertas, aguardando, concluidasHoje, concluidasPassadas, periodSecs, openCount: abertas.length }
   })
 }
 

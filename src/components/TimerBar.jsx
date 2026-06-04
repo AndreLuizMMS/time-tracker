@@ -6,7 +6,7 @@ import { TimeField } from './pickers'
 // barra de captura persistente — o tempo é o herói; projeto + categoria já vêm dos últimos usados
 export function TimerBar({
   active, elapsed, desc, projectId, categoryId, projects, categories, startStr,
-  onDescChange, onProjectChange, onCategoryChange, onStart, onStop, onStartTimeChange,
+  onDescChange, onProjectChange, onCategoryChange, onStart, onStop, onDiscard, onStartTimeChange,
 }) {
   return (
     <section className={`${styles.timerBand} ${active ? styles.timerBandActive : ''}`}>
@@ -45,6 +45,11 @@ export function TimerBar({
       </div>
 
       <div className={styles.timerBtnWrap}>
+        {active && (
+          <button type="button" className={styles.iconBtn} onClick={onDiscard} aria-label="Descartar timer (sem salvar)" title="Descartar (não salva entrada)">
+            <i className="ti ti-x" aria-hidden="true" />
+          </button>
+        )}
         <button
           className={`${styles.btnPrimary} ${styles.btnTimer} ${active ? styles.btnStop : ''}`}
           onClick={active ? onStop : onStart}
