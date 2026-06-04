@@ -106,10 +106,16 @@ export function buildCola(tasks, entries, today) {
     t => t.status === 'concluida' && t.completedAt && localDateStr(new Date(t.completedAt)) === lastDay
   )
   const vouFazer = tasks.filter(t => t.todayDate === today && t.status !== 'concluida')
-  const aguardando = tasks
-    .filter(t => t.status === 'aguardando')
-    .sort((a, b) => (a.waitingSince || 0) - (b.waitingSince || 0))
-  return { lastDay, fizEntries, fizDone, vouFazer, aguardando }
+  // bloqueios = aguardando (esperando alguém) + tarefas marcadas como bloqueante; sem concluídas
+  const bloqueios = tasks
+    .filter(t => t.status !== 'concluida' && (t.status === 'aguardando' || t.blocking))
+    .sort((a, b) => {
+      const aw = a.status === 'aguardando' ? 0 : 1
+      const bw = b.status === 'aguardando' ? 0 : 1
+      if (aw !== bw) return aw - bw // aguardando primeiro, bloqueante-só depois
+      return (a.waitingSince || 0) - (b.waitingSince || 0)
+    })
+  return { lastDay, fizEntries, fizDone, vouFazer, bloqueios }
 }
 
 // agrupa itens por projectId, preservando a ordem dos projetos; ignora grupos vazios

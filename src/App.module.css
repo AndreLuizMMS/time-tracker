@@ -425,6 +425,19 @@
 
 .colaItemDone .colaItemText { color: var(--text-secondary); }
 
+.colaBlockTag {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--error);
+}
+.colaBlockTag i { font-size: 12px; }
+
 .colaCheck {
   display: grid;
   place-items: center;

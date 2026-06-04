@@ -14,14 +14,14 @@ function ProjGroup({ project, children }) {
 
 // cola do daily — três blocos derivados (fiz / vou fazer / aguardando), agrupados por projeto
 export function ColaDaily({ cola, projects, today, timerActive, onStartTimer, onComplete }) {
-  const { lastDay, fizEntries, fizDone, vouFazer, aguardando } = cola
+  const { lastDay, fizEntries, fizDone, vouFazer, bloqueios } = cola
   const lastDayTotal = fizEntries.reduce((s, e) => s + e.dur, 0)
   const lastDayLabel = lastDay === localDateStr(addDays(new Date(), -1)) ? 'Ontem' : fmtDayShort(lastDay)
 
   const entriesByProj = groupByProject(fizEntries, projects)
   const doneByProj = groupByProject(fizDone, projects)
   const vouByProj = groupByProject(vouFazer, projects)
-  const aguardByProj = groupByProject(aguardando, projects)
+  const bloqByProj = groupByProject(bloqueios, projects)
 
   return (
     <section className={styles.colaCard}>
@@ -96,21 +96,25 @@ export function ColaDaily({ cola, projects, today, timerActive, onStartTimer, on
 
       <div className={styles.colaDivider} aria-hidden="true" />
 
-      {/* Aguardando — bloqueios */}
+      {/* Bloqueios — aguardando + tarefas marcadas bloqueante */}
       <div className={styles.colaBlock}>
         <div className={styles.colaBlockHead}>
-          <span className={styles.colaBlockLabel}><i className="ti ti-hourglass-high" aria-hidden="true" />Aguardando · bloqueios</span>
-          {aguardando.length > 0 && <span className={styles.colaBlockMeta}>{aguardando.length}</span>}
+          <span className={styles.colaBlockLabel}><i className="ti ti-hourglass-high" aria-hidden="true" />Bloqueios</span>
+          {bloqueios.length > 0 && <span className={styles.colaBlockMeta}>{bloqueios.length}</span>}
         </div>
-        {aguardando.length === 0 ? (
-          <p className={styles.colaEmpty}>Nada bloqueado esperando alguém.</p>
+        {bloqueios.length === 0 ? (
+          <p className={styles.colaEmpty}>Nada bloqueado.</p>
         ) : (
-          aguardByProj.map(g => (
+          bloqByProj.map(g => (
             <ProjGroup key={`a${g.project.id}`} project={g.project}>
               {g.items.map(t => (
                 <li key={t.id} className={styles.colaItem}>
                   <span className={styles.colaItemText}>{t.title}</span>
-                  <span className={styles.colaItemMeta}>{t.waitingPerson ? `${t.waitingPerson} · ` : ''}{businessDaysSince(t.waitingSince)}d</span>
+                  {t.status === 'aguardando' ? (
+                    <span className={styles.colaItemMeta}>{t.waitingPerson ? `${t.waitingPerson} · ` : ''}{businessDaysSince(t.waitingSince)}d</span>
+                  ) : (
+                    <span className={styles.colaBlockTag}><i className="ti ti-alert-octagon" aria-hidden="true" />bloqueante</span>
+                  )}
                 </li>
               ))}
             </ProjGroup>
