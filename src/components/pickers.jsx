@@ -1,7 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useRef, forwardRef } from 'react'
 import { createPortal } from 'react-dom'
 import styles from '../App.module.css'
-import { pad2, todayStr, WEEKDAYS, MONTHS } from '../lib/format'
+import { pad2, secsToTime, todayStr, WEEKDAYS, MONTHS } from '../lib/format'
 import { PALETTE, PRIORITY_COLORS, PRIORITY_LABELS, STATUS_LABELS } from '../lib/storage'
 
 // fecha popover ao clicar fora ou apertar Escape (para popovers no fluxo, ex. dentro de .field/.card)
@@ -242,6 +242,53 @@ export function ChipPicker({ value, options, onChange, allowNone, noneLabel = 'S
               <span className={styles.chipDot} style={{ background: o.color }} aria-hidden="true" />{o.name}
             </button>
           ))}
+        </PortalPop>
+      )}
+    </div>
+  )
+}
+
+// ─── Time-log control — lança duração numa tarefa (e conclui) — portalado ────
+export function TimeLogControl({ onLog, disabled }) {
+  const { open, setOpen, pos, triggerRef, popRef } = useAnchoredPopover()
+  const [draft, setDraft] = useState('00:30')
+  const inputRef = useRef(null)
+  useEffect(() => {
+    if (!open) return
+    setDraft('00:30')
+    requestAnimationFrame(() => inputRef.current?.select())
+  }, [open])
+  const d = draft.replace(/\D/g, '')
+  const secs = d ? (parseInt(d.slice(0, 2) || '0', 10) * 3600 + Math.min(59, parseInt(d.slice(2, 4) || '0', 10)) * 60) : 0
+  const handleType = e => {
+    const el = e.target
+    const digits = el.value.replace(/\D/g, '').slice(0, 4)
+    const f = digits.length > 2 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : digits
+    setDraft(f)
+    requestAnimationFrame(() => { try { el.setSelectionRange(f.length, f.length) } catch {} })
+  }
+  const fire = conclude => { if (secs > 0) { onLog(secs, conclude); setOpen(false) } }
+  const chips = [['15min', 900], ['30min', 1800], ['1h', 3600], ['2h', 7200], ['4h', 14400]]
+  return (
+    <div className={styles.chipWrap}>
+      <button ref={triggerRef} type="button" className={styles.iconAction} onClick={() => setOpen(o => !o)} disabled={disabled} aria-haspopup="dialog" aria-expanded={open} aria-label="Lançar tempo" title="Lançar tempo">
+        <i className="ti ti-clock-plus" aria-hidden="true" />
+      </button>
+      {open && (
+        <PortalPop popRef={popRef} pos={pos} className={styles.timeLogPop} role="dialog">
+          <div className={styles.timeLogLabel}>Lançar tempo</div>
+          <input ref={inputRef} className={styles.timeLogInput} value={draft} onChange={handleType} onFocus={e => e.target.select()} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); fire(true) } }} inputMode="numeric" placeholder="HH:MM" maxLength={5} aria-label="Duração (HH:MM)" />
+          <div className={styles.timeLogChips}>
+            {chips.map(([lbl, s]) => (
+              <button key={lbl} type="button" className={styles.timeLogChip} onClick={() => setDraft(secsToTime(s))}>{lbl}</button>
+            ))}
+          </div>
+          <div className={styles.timeLogActions}>
+            <button type="button" className={styles.timeLogGhost} onClick={() => fire(false)} disabled={secs <= 0}>Só lançar</button>
+            <button type="button" className={styles.timeLogPrimary} onClick={() => fire(true)} disabled={secs <= 0}>
+              <i className="ti ti-check" aria-hidden="true" />Lançar e concluir
+            </button>
+          </div>
         </PortalPop>
       )}
     </div>

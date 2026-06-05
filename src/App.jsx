@@ -200,10 +200,31 @@ export default function App() {
   const toConcluida = id => updateTask(id, { status: 'concluida', completedAt: Date.now(), waitingSince: null, waitingPerson: null })
   const reopen = id => updateTask(id, { status: 'aberta', completedAt: null, waitingSince: null, waitingPerson: null })
 
+  // lança um bloco de tempo manual direto numa tarefa (entry de hoje, vinculada à tarefa);
+  // compõe o total como qualquer entrada. conclude=true também fecha a tarefa.
+  const logTaskTime = (task, secs, conclude) => {
+    if (!secs || secs <= 0) return
+    const now = new Date()
+    const endSecs = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds()
+    const startSecs = Math.max(0, endSecs - secs)
+    const entry = {
+      id: Date.now(), date: localDateStr(now), desc: task.title,
+      projectId: task.projectId, categoryId: task.categoryId, taskId: task.id,
+      start: secsToTime(startSecs), end: secsToTime(endSecs % 86400), dur: secs,
+    }
+    setEntries(prev => {
+      const next = [entry, ...prev]
+      next.sort((a, b) => b.date.localeCompare(a.date) || b.start.localeCompare(a.start))
+      return next
+    })
+    if (conclude) toConcluida(task.id)
+    showNotice(conclude ? `${fmtHoursDec(secs)} lançado · tarefa concluída` : `${fmtHoursDec(secs)} lançado`)
+  }
+
   const taskActions = {
     setPriority, toggleBlocking, toAberta, toAguardando, toConcluida, reopen,
     setWaitingPerson, setDeadline, toggleFocus, setProject: setTaskProject, setCategory: setTaskCategory,
-    startTimer: startTimerFromTask, remove: removeTask, commitTitle,
+    startTimer: startTimerFromTask, remove: removeTask, commitTitle, logTime: logTaskTime,
   }
 
   // ── Projects CRUD ──

@@ -3,7 +3,7 @@ import styles from '../App.module.css'
 import { fmtHoursDec, fmtDate, localDateStr } from '../lib/format'
 import { FALLBACK_COLOR } from '../lib/storage'
 import { taskSignals } from '../lib/selectors'
-import { PriorityPicker, StatusControl, WaitingControl, DeadlineControl, ChipPicker } from './pickers'
+import { PriorityPicker, StatusControl, WaitingControl, DeadlineControl, ChipPicker, TimeLogControl } from './pickers'
 
 // selo de tempo consumido (mono); soma o cronômetro vivo quando a tarefa está rodando
 function TimeBadge({ secs, running }) {
@@ -55,6 +55,9 @@ function TaskRow({ task, categories, projects, today, timerActive, secsByTask, t
             <button className={styles.iconAction} onClick={() => a.startTimer(task)} disabled={timerActive} aria-label="Iniciar timer" title={timerActive ? 'Timer em andamento' : 'Iniciar timer'}>
               <i className="ti ti-player-play" aria-hidden="true" />
             </button>
+          )}
+          {task.status !== 'concluida' && (
+            <TimeLogControl onLog={(secs, conclude) => a.logTime(task, secs, conclude)} />
           )}
           <button className={styles.iconAction} onClick={() => setEditing(true)} aria-label="Editar" title="Editar">
             <i className="ti ti-pencil" aria-hidden="true" />
