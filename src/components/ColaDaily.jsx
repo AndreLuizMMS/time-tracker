@@ -1,7 +1,10 @@
 import styles from '../App.module.css'
-import { fmtHoursDec, fmtDayShort, localDateStr, addDays } from '../lib/format'
+import { fmtHoursDec, localDateStr, addDays } from '../lib/format'
 import { FALLBACK_COLOR } from '../lib/storage'
 import { groupByProject, businessDaysSince } from '../lib/selectors'
+import { DateField } from './pickers'
+
+const shiftDay = (day, n) => localDateStr(addDays(new Date(day + 'T12:00:00'), n))
 
 function ProjGroup({ project, children }) {
   return (
@@ -13,10 +16,10 @@ function ProjGroup({ project, children }) {
 }
 
 // cola do daily — três blocos derivados (fiz / vou fazer / aguardando), agrupados por projeto
-export function ColaDaily({ cola, projects, today, timerActive, onStartTimer, onComplete }) {
+export function ColaDaily({ cola, projects, today, timerActive, selectedDay, onSelectDay, onStartTimer, onComplete }) {
   const { lastDay, fizEntries, fizDone, vouFazer, bloqueios } = cola
   const lastDayTotal = fizEntries.reduce((s, e) => s + e.dur, 0)
-  const lastDayLabel = lastDay === localDateStr(addDays(new Date(), -1)) ? 'Ontem' : fmtDayShort(lastDay)
+  const canNext = lastDay < today
 
   const entriesByProj = groupByProject(fizEntries, projects)
   const doneByProj = groupByProject(fizDone, projects)
@@ -29,10 +32,24 @@ export function ColaDaily({ cola, projects, today, timerActive, onStartTimer, on
         <span className={styles.colaTitle}><i className="ti ti-clipboard-text" aria-hidden="true" />Cola da daily</span>
       </header>
 
-      {/* Fiz — último dia com registro */}
+      {/* Fiz — dia selecionável (default: último dia com registro) */}
       <div className={styles.colaBlock}>
         <div className={styles.colaBlockHead}>
-          <span className={styles.colaBlockLabel}><i className="ti ti-arrow-back-up" aria-hidden="true" />{lastDayLabel} · fiz</span>
+          <span className={styles.colaBlockLabel}><i className="ti ti-arrow-back-up" aria-hidden="true" />fiz</span>
+          <div className={styles.colaDayNav}>
+            <button type="button" className={styles.colaDayArrow} onClick={() => onSelectDay(shiftDay(lastDay, -1))} aria-label="Dia anterior" title="Dia anterior">
+              <i className="ti ti-chevron-left" aria-hidden="true" />
+            </button>
+            <DateField value={lastDay} onChange={d => onSelectDay(d > today ? null : d)} />
+            <button type="button" className={styles.colaDayArrow} onClick={() => onSelectDay(shiftDay(lastDay, 1))} disabled={!canNext} aria-label="Próximo dia" title="Próximo dia">
+              <i className="ti ti-chevron-right" aria-hidden="true" />
+            </button>
+            {selectedDay && (
+              <button type="button" className={styles.colaDayReset} onClick={() => onSelectDay(null)} aria-label="Voltar ao último dia" title="Voltar ao último dia">
+                <i className="ti ti-restore" aria-hidden="true" />
+              </button>
+            )}
+          </div>
           {lastDayTotal > 0 && <span className={styles.colaBlockMeta}>{fmtHoursDec(lastDayTotal)}</span>}
         </div>
         {fizEntries.length === 0 && fizDone.length === 0 ? (

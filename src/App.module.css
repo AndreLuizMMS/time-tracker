@@ -3060,7 +3060,7 @@
 /* ─── Zona inferior: cola/gerenciadores | entradas ───── */
 .lower {
   display: grid;
-  grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
+  grid-template-columns: minmax(440px, 520px) minmax(0, 1fr);
   gap: 20px;
   align-items: start;
 }
@@ -3211,3 +3211,50 @@
   .timeLogPrimary:hover { background: var(--primary-hover); }
 }
 .timeLogGhost:disabled, .timeLogPrimary:disabled { opacity: 0.45; pointer-events: none; }
+
+/* ─── Cola: seletor de dia do bloco "fiz" ────────────────────────────── */
+.colaDayNav { display: inline-flex; align-items: center; gap: 4px; margin-right: auto; }
+.colaDayArrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  transition: background var(--transition-fast) ease, color var(--transition-fast) ease;
+}
+.colaDayArrow i { font-size: 15px; }
+.colaDayArrow:disabled { opacity: 0.4; pointer-events: none; }
+@media (hover: hover) and (pointer: fine) {
+  .colaDayArrow:hover { background: var(--surface-3); color: var(--text-primary); }
+}
+.colaDayReset {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--primary);
+  transition: background var(--transition-fast) ease;
+}
+.colaDayReset i { font-size: 15px; }
+@media (hover: hover) and (pointer: fine) {
+  .colaDayReset:hover { background: var(--surface-2); }
+}
+/* DateField compacto dentro da cola */
+.colaDayNav .field { width: auto; }
+.colaDayNav .fieldTrigger {
+  height: 24px;
+  gap: 5px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+}
+.colaDayNav .fieldTrigger > i:first-child { font-size: 13px; }
+.colaDayNav .fieldValue { font-size: var(--text-xs); }

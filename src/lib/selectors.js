@@ -90,14 +90,15 @@ export function buildProjectView(projects, tasks, entries, today, from, to, { in
 }
 
 // cola do daily — 3 blocos (listas brutas; agrupamento por projeto fica na UI)
-export function buildCola(tasks, entries, today) {
+// selectedDay (opcional): fixa o dia do bloco "fiz"; null → último dia de trabalho automático
+export function buildCola(tasks, entries, today, selectedDay = null) {
   // último dia de trabalho = dia com entrada de tempo OU tarefa concluída
   // (tarefa fechada sem cronômetro também conta como trabalho feito)
   const doneDates = tasks
     .filter(t => t.status === 'concluida' && t.completedAt)
     .map(t => localDateStr(new Date(t.completedAt)))
   const past = [...new Set([...entries.map(e => e.date), ...doneDates])].filter(d => d < today).sort()
-  const lastDay = past.length ? past[past.length - 1] : localDateStr(addDays(new Date(), -1))
+  const lastDay = selectedDay ?? (past.length ? past[past.length - 1] : localDateStr(addDays(new Date(), -1)))
   const fizEntries = entries
     .filter(e => e.date === lastDay)
     .slice()

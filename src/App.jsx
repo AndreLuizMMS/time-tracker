@@ -407,6 +407,8 @@ export default function App() {
   const [taskFilterDeadline, setTaskFilterDeadline] = useState('all') // all | overdue | today | has | none
   const [taskFilterBlocking, setTaskFilterBlocking] = useState(false)
   const taskSearchRef = useRef(null)
+  // dia do bloco "fiz" da cola; null = último dia de trabalho (automático)
+  const [colaDay, setColaDay] = useState(null)
   const hasTaskFilters = taskFilterStatus !== 'all' || taskFilterCategory !== 'all' || taskFilterDeadline !== 'all' || taskFilterBlocking
   const clearTaskFilters = () => { setTaskFilterStatus('all'); setTaskFilterCategory('all'); setTaskFilterDeadline('all'); setTaskFilterBlocking(false) }
   const taskFilterActive = taskSearch.trim() !== '' || hasTaskFilters
@@ -433,7 +435,7 @@ export default function App() {
   const visibleVMs = taskFilterActive
     ? projectVMs.filter(vm => vm.abertas.length || vm.aguardando.length || vm.concluidasHoje.length || vm.concluidasPassadas.length)
     : projectVMs
-  const cola = useMemo(() => buildCola(tasks, entries, today), [tasks, entries, today])
+  const cola = useMemo(() => buildCola(tasks, entries, today, colaDay), [tasks, entries, today, colaDay])
   const hiddenCount = projects.filter(p => p.hidden).length
   const allCollapsed = projectVMs.length > 0 && projectVMs.every(vm => vm.project.collapsed)
   const toggleAllCollapsed = () => setProjects(prev => prev.map(p => (p.hidden ? p : { ...p, collapsed: !allCollapsed })))
@@ -599,6 +601,7 @@ export default function App() {
         <div className={styles.lower}>
           <div className={styles.lowerLeft}>
             <ColaDaily cola={cola} projects={projects} today={today} timerActive={timerActive}
+              selectedDay={colaDay} onSelectDay={setColaDay}
               onStartTimer={startTimerFromTask} onComplete={toConcluida} />
             <ProjectsManager projects={projects} open={projectsManagerOpen} onToggle={() => setProjectsManagerOpen(o => !o)}
               onAdd={addProject} onRename={renameProject} onRecolor={recolorProject} onDelete={deleteProject} onToggleHidden={toggleHiddenProject} />
