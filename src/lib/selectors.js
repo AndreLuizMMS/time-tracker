@@ -106,6 +106,18 @@ export function buildCola(tasks, entries, today, selectedDay = null) {
   const fizDone = tasks.filter(
     t => t.status === 'concluida' && t.completedAt && localDateStr(new Date(t.completedAt)) === lastDay
   )
+  // reconciliação: tarefa concluída no dia + entradas vinculadas = mesma unidade.
+  // a tarefa absorve o tempo das suas entradas; entradas avulsas (sem task, ou de
+  // task não-concluída no dia) ficam soltas. evita o mesmo título aparecer 2x.
+  const doneIds = new Set(fizDone.map(t => t.id))
+  const secsByTask = new Map()
+  for (const e of fizEntries) {
+    if (e.taskId != null && doneIds.has(e.taskId)) {
+      secsByTask.set(e.taskId, (secsByTask.get(e.taskId) || 0) + e.dur)
+    }
+  }
+  const fizLoose = fizEntries.filter(e => e.taskId == null || !doneIds.has(e.taskId))
+  const fizDoneTimed = fizDone.map(t => ({ ...t, secs: secsByTask.get(t.id) || 0 }))
   const vouFazer = tasks.filter(t => t.todayDate === today && t.status !== 'concluida')
   // bloqueios = aguardando (esperando alguém) + tarefas marcadas como bloqueante; sem concluídas
   const bloqueios = tasks
@@ -116,7 +128,7 @@ export function buildCola(tasks, entries, today, selectedDay = null) {
       if (aw !== bw) return aw - bw // aguardando primeiro, bloqueante-só depois
       return (a.waitingSince || 0) - (b.waitingSince || 0)
     })
-  return { lastDay, fizEntries, fizDone, vouFazer, bloqueios }
+  return { lastDay, fizEntries, fizLoose, fizDone: fizDoneTimed, vouFazer, bloqueios }
 }
 
 // agrupa itens por projectId, preservando a ordem dos projetos; ignora grupos vazios
