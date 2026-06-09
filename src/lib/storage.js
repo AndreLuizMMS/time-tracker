@@ -21,7 +21,11 @@ export const SEED_PROJECTS = [GERAL]
 // Sem categorias base — começa limpo. Usuário cria as suas.
 export const DEFAULT_CATEGORIES = []
 
-export const PALETTE = ['#1D9E75', '#2FB488', '#378ADD', '#7F77DD', '#D4537E', '#E24B4A', '#E0A03B', '#BA7517', '#54534E']
+export const PALETTE = [
+  '#1D9E75', '#2FB488', '#3FB6B0', '#378ADD', '#4F6FE0', '#7F77DD',
+  '#A165D8', '#C857C2', '#D4537E', '#E24B4A', '#E8743B', '#E0A03B',
+  '#C9B23A', '#8FAE2F', '#BA7517', '#8A6D52', '#6B7280', '#54534E',
+]
 export const FALLBACK_COLOR = '#74726b'
 
 // Prioridade: 1=Urgente … 4=Baixa (menor = mais urgente). Default Normal = 3.
