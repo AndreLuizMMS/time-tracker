@@ -322,7 +322,7 @@ function ManagerSection({ icon, title, count, open, onToggle, children }) {
 // ─── Projects manager ─────────────────────────────────────────────────────────
 export function ProjectsManager({ projects, open, onToggle, onAdd, onRename, onRecolor, onDelete, onToggleHidden }) {
   const [newName, setNewName] = useState('')
-  const [newColor, setNewColor] = useState('#378ADD')
+  const [newColor, setNewColor] = useState('#5B8DEF')
   const add = () => { const n = newName.trim(); if (!n) return; onAdd(n, newColor); setNewName('') }
   return (
     <ManagerSection icon="ti-folders" title="Projetos" count={projects.length} open={open} onToggle={onToggle}>
@@ -359,7 +359,7 @@ export function ProjectsManager({ projects, open, onToggle, onAdd, onRename, onR
 // ─── Categories manager ───────────────────────────────────────────────────────
 export function CategoriesManager({ categories, open, onToggle, onAdd, onRename, onRecolor, onDelete }) {
   const [newName, setNewName] = useState('')
-  const [newColor, setNewColor] = useState('#1D9E75')
+  const [newColor, setNewColor] = useState('#6D5DF5')
   const add = () => { const n = newName.trim(); if (!n) return; onAdd(n, newColor); setNewName('') }
   return (
     <ManagerSection icon="ti-tags" title="Categorias" count={categories.length} open={open} onToggle={onToggle}>

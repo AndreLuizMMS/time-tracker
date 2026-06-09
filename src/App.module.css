@@ -259,14 +259,14 @@
   border-radius: var(--radius-full);
   background: var(--primary);
   flex-shrink: 0;
-  box-shadow: 0 0 0 0 rgba(29,158,117,0.5);
+  box-shadow: 0 0 0 0 rgba(109,93,245,0.5);
   animation: pulse 2s var(--ease-in-out) infinite;
 }
 
 @keyframes pulse {
-  0%   { box-shadow: 0 0 0 0 rgba(29,158,117,0.45); }
-  70%  { box-shadow: 0 0 0 9px rgba(29,158,117,0); }
-  100% { box-shadow: 0 0 0 0 rgba(29,158,117,0); }
+  0%   { box-shadow: 0 0 0 0 rgba(109,93,245,0.45); }
+  70%  { box-shadow: 0 0 0 9px rgba(109,93,245,0); }
+  100% { box-shadow: 0 0 0 0 rgba(109,93,245,0); }
 }
 
 .timerDisplay {
@@ -1522,7 +1522,7 @@
 
 .taskPriorityBtnActive.priorityBtn1 { background: rgba(226,75,74,0.15);  color: #E24B4A; border-color: rgba(226,75,74,0.45); }
 .taskPriorityBtnActive.priorityBtn2 { background: rgba(224,160,59,0.15); color: #E0A03B; border-color: rgba(224,160,59,0.45); }
-.taskPriorityBtnActive.priorityBtn3 { background: rgba(29,158,117,0.15); color: var(--primary-accent); border-color: rgba(29,158,117,0.45); }
+.taskPriorityBtnActive.priorityBtn3 { background: rgba(109,93,245,0.15); color: var(--primary-accent); border-color: rgba(109,93,245,0.45); }
 .taskPriorityBtnActive.priorityBtn4 { background: var(--surface-2); color: var(--text-secondary); border-color: var(--border-strong); }
 
 .taskAddInput {
@@ -1621,7 +1621,7 @@
 
 .priorityBadge1 { background: rgba(226,75,74,0.18);  color: #E24B4A; }
 .priorityBadge2 { background: rgba(224,160,59,0.18); color: #E0A03B; }
-.priorityBadge3 { background: rgba(29,158,117,0.18); color: var(--primary-accent); }
+.priorityBadge3 { background: rgba(109,93,245,0.18); color: var(--primary-accent); }
 .priorityBadge4 { background: var(--surface-2); color: var(--text-tertiary); }
 .priorityBadgeDone { background: var(--surface-2); color: var(--text-tertiary); pointer-events: none; cursor: default; }
 
@@ -1973,14 +1973,14 @@
 .presetChip:active { transform: scale(0.95); }
 
 .presetChipActive {
-  background: rgba(29,158,117,0.15);
+  background: rgba(109,93,245,0.15);
   color: var(--primary-accent);
-  border-color: rgba(29,158,117,0.45);
+  border-color: rgba(109,93,245,0.45);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .presetChip:hover { border-color: var(--border-strong); color: var(--text-primary); }
-  .presetChipActive:hover { border-color: rgba(29,158,117,0.45); color: var(--primary-accent); }
+  .presetChipActive:hover { border-color: rgba(109,93,245,0.45); color: var(--primary-accent); }
 }
 
 .filterRow {
@@ -2193,7 +2193,7 @@
   height: 20px;
   padding: 0 7px;
   border-radius: var(--radius-full);
-  background: rgba(29,158,117,0.18);
+  background: rgba(109,93,245,0.18);
   color: var(--primary-accent);
   font-family: var(--font-mono);
   font-size: 11px;
@@ -2390,8 +2390,8 @@
 .iconAction:active { transform: scale(0.92); }
 .iconAction:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
 
-.iconActionOk { color: var(--primary-accent); border-color: rgba(29,158,117,0.4); background: rgba(29,158,117,0.12); }
-.iconActionStar { color: var(--primary-accent); border-color: rgba(29,158,117,0.4); background: rgba(29,158,117,0.12); }
+.iconActionOk { color: var(--primary-accent); border-color: rgba(109,93,245,0.4); background: rgba(109,93,245,0.12); }
+.iconActionStar { color: var(--primary-accent); border-color: rgba(109,93,245,0.4); background: rgba(109,93,245,0.12); }
 
 @media (hover: hover) and (pointer: fine) {
   .iconAction:hover { color: var(--text-primary); border-color: var(--border-strong); background: var(--surface-3); }
@@ -2772,7 +2772,7 @@
   font-variant-numeric: tabular-nums;
 }
 .taskTimeBadge i { font-size: 13px; color: var(--text-tertiary); }
-.taskTimeBadgeRunning { color: var(--primary-accent); background: rgba(29,158,117,0.12); }
+.taskTimeBadgeRunning { color: var(--primary-accent); background: rgba(109,93,245,0.12); }
 .taskTimeBadgeRunning i { color: var(--primary-accent); }
 
 .taskBlockingBadge {

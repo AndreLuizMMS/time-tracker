@@ -23,7 +23,7 @@ function TaskRow({ task, categories, projects, today, timerActive, secsByTask, t
   const isFocus = task.todayDate === today
   const running = timerActive && timerTaskId === task.id
   const spent = (secsByTask?.get(task.id) || 0) + (running ? timerElapsed : 0)
-  const prioColor = { 1: '#E24B4A', 2: '#E0A03B', 3: '#1D9E75', 4: '#74726B' }[task.priority]
+  const prioColor = { 1: '#E24B4A', 2: '#E0A03B', 3: '#36C28E', 4: '#5e6380' }[task.priority]
 
   const commit = () => { const t = draft.trim(); if (t) a.commitTitle(task.id, t); setEditing(false) }
 

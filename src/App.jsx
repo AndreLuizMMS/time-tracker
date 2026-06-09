@@ -91,8 +91,8 @@ export default function App() {
   }, [timerActive, timerStart])
 
   useEffect(() => {
-    document.title = timerActive ? `${fmtDur(timerElapsed)} • Time Tracker` : 'Time Tracker'
-    return () => { document.title = 'Time Tracker' }
+    document.title = timerActive ? `${fmtDur(timerElapsed)} • MentalMap` : 'MentalMap'
+    return () => { document.title = 'MentalMap' }
   }, [timerActive, timerElapsed])
 
   const startTimer = () => {
@@ -520,8 +520,8 @@ export default function App() {
       <header className={styles.header}>
         <div className={styles.headerInner}>
           <div className={styles.logo}>
-            <span className={styles.logoMark}><i className="ti ti-radar-2" aria-hidden="true" /></span>
-            <span>Time Tracker</span>
+            <span className={styles.logoMark}><i className="ti ti-brain" aria-hidden="true" /></span>
+            <span>MentalMap</span>
           </div>
           <div className={styles.headerStats}>
             <div className={`${styles.kpi} ${styles.kpiPrimary} ${styles.kpiGoal} ${goalMet ? styles.kpiGoalMet : ''}`}>

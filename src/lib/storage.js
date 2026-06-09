@@ -13,7 +13,7 @@ export const KEYS = {
 
 // Balde embutido: string nunca colide com ids numéricos (Date.now()) nem com a categoria id 0
 export const GERAL_ID = 'geral'
-export const GERAL = { id: GERAL_ID, name: 'Geral', color: '#1D9E75' }
+export const GERAL = { id: GERAL_ID, name: 'Geral', color: '#6D5DF5' }
 
 // Projetos-semente: só o balde Geral (embutido, obrigatório). Sem projetos base — começa limpo.
 export const SEED_PROJECTS = [GERAL]
@@ -22,14 +22,14 @@ export const SEED_PROJECTS = [GERAL]
 export const DEFAULT_CATEGORIES = []
 
 export const PALETTE = [
-  '#1D9E75', '#2FB488', '#3FB6B0', '#378ADD', '#4F6FE0', '#7F77DD',
+  '#6D5DF5', '#22D3EE', '#3FB6B0', '#5B8DEF', '#4F6FE0', '#7F77DD',
   '#A165D8', '#C857C2', '#D4537E', '#E24B4A', '#E8743B', '#E0A03B',
   '#C9B23A', '#8FAE2F', '#BA7517', '#8A6D52', '#6B7280', '#54534E',
 ]
-export const FALLBACK_COLOR = '#74726b'
+export const FALLBACK_COLOR = '#5e6380'
 
 // Prioridade: 1=Urgente … 4=Baixa (menor = mais urgente). Default Normal = 3.
-export const PRIORITY_COLORS = { 1: '#E24B4A', 2: '#E0A03B', 3: '#1D9E75', 4: '#74726B' }
+export const PRIORITY_COLORS = { 1: '#E24B4A', 2: '#E0A03B', 3: '#36C28E', 4: '#5e6380' }
 export const PRIORITY_LABELS = ['Urgente', 'Alta', 'Normal', 'Baixa']
 export const PRIORITY_DEFAULT = 3
 
