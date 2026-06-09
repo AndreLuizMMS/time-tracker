@@ -67,12 +67,13 @@ export function buildProjectView(projects, tasks, entries, today, from, to, { in
     .filter(p => !p.hidden)
     .sort((a, b) => (a.id === GERAL_ID ? 1 : 0) - (b.id === GERAL_ID ? 1 : 0))
   return ordered.map(p => {
+    // tarefas em foco do dia saem das colunas de projeto — vivem só em "Foco do dia"
     const pTasks = tasks.filter(t => t.projectId === p.id)
     const abertas = pTasks
-      .filter(t => t.status === 'aberta')
+      .filter(t => t.status === 'aberta' && t.todayDate !== today)
       .sort((a, b) => a.priority - b.priority || a.createdAt - b.createdAt)
     const aguardando = pTasks
-      .filter(t => t.status === 'aguardando')
+      .filter(t => t.status === 'aguardando' && t.todayDate !== today)
       .sort((a, b) => (a.waitingSince || 0) - (b.waitingSince || 0))
     const concluidasHoje = pTasks.filter(
       t => t.status === 'concluida' && t.completedAt && localDateStr(new Date(t.completedAt)) === today
