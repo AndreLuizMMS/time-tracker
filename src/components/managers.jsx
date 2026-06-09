@@ -142,7 +142,7 @@ export function ManualEntryForm({ editing, projects, categories, defaultProjectI
         </div>
         <div className={styles.formGroup}>
           <label className={styles.formLabel}>Início</label>
-          <TimeField value={start} onChange={setStart} onComplete={() => endRef.current?.focus()} />
+          <TimeField value={start} onChange={setStart} />
         </div>
         <div className={styles.formGroup}>
           <label className={styles.formLabel}>Fim</label>
