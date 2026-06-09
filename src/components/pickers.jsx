@@ -121,10 +121,13 @@ function CalPanel({ value, onPick }) {
 export const TimeField = forwardRef(function TimeField({ value, onChange, onComplete }, inputRef) {
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState(value)
+  const [focused, setFocused] = useState(false)
   const ref = useRef(null)
   const popRef = useRef(null)
   useDismiss(open, setOpen, ref)
-  useEffect(() => { setDraft(value) }, [value])
+  // só sincroniza o draft com o value externo quando NÃO está focado — durante a edição
+  // (timer ativo re-renderiza a cada 1s) o valor digitado não pode ser sobreposto
+  useEffect(() => { if (!focused) setDraft(value) }, [value, focused])
   const [h, m] = value.split(':')
   const hours = Array.from({ length: 24 }, (_, i) => pad2(i))
   const mins = Array.from({ length: 60 }, (_, i) => pad2(i))
@@ -148,10 +151,13 @@ export const TimeField = forwardRef(function TimeField({ value, onChange, onComp
     }
   }
   const handleBlur = () => {
+    setFocused(false)
     const d = draft.replace(/\D/g, '')
     if (!d) { setDraft(value); return }
-    const hh = Math.min(23, parseInt(d.slice(0, 2) || '0', 10))
-    const mm = Math.min(59, parseInt(d.slice(2, 4) || '0', 10))
+    // entrada parcial preserva a parte não digitada do valor atual (digitar só a hora não zera os minutos)
+    const [, vm] = value.split(':')
+    const hh = Math.min(23, parseInt(d.slice(0, 2), 10))
+    const mm = d.length > 2 ? Math.min(59, parseInt(d.slice(2, 4), 10)) : parseInt(vm, 10)
     const v = `${pad2(hh)}:${pad2(mm)}`
     onChange(v); setDraft(v)
   }
@@ -159,7 +165,7 @@ export const TimeField = forwardRef(function TimeField({ value, onChange, onComp
     <div className={styles.field} ref={ref}>
       <div className={`${styles.fieldTrigger} ${open ? styles.fieldTriggerOpen : ''}`}>
         <i className="ti ti-clock-hour-4" aria-hidden="true" />
-        <input ref={inputRef} className={styles.timeTextInput} value={draft} onChange={handleType} onBlur={handleBlur} onFocus={e => e.target.select()} inputMode="numeric" placeholder="--:--" maxLength={5} aria-label="Hora (HH:MM)" />
+        <input ref={inputRef} className={styles.timeTextInput} value={draft} onChange={handleType} onBlur={handleBlur} onFocus={e => { setFocused(true); e.target.select() }} inputMode="numeric" placeholder="--:--" maxLength={5} aria-label="Hora (HH:MM)" />
         <button type="button" className={styles.fieldChevronBtn} onClick={() => setOpen(o => !o)} aria-label="Escolher hora" aria-haspopup="dialog" aria-expanded={open}><i className={`ti ti-chevron-down ${styles.fieldChevron}`} aria-hidden="true" /></button>
       </div>
       {open && (
