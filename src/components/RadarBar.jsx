@@ -25,7 +25,7 @@ function RadarItem({ task, project, signal, actions, active }) {
 }
 
 // radar transversal — ignora projeto, agrupa por tipo de urgência; só leitura + ação rápida
-export function RadarBar({ radar, projById, today, onComplete, onBringBack, onStartTimer, timerActive, timerTaskId }) {
+export function RadarBar({ radar, projById, today, onComplete, onBringBack, onStartTimer, onRemoveFocus, timerActive, timerTaskId }) {
   if (radar.isEmpty) {
     return (
       <section className={`${styles.radar} ${styles.radarCalm}`} aria-label="Radar">
@@ -88,7 +88,12 @@ export function RadarBar({ radar, projById, today, onComplete, onBringBack, onSt
           <div className={styles.radarGroupLabel}><i className="ti ti-star" aria-hidden="true" />Foco do dia<span className={styles.radarCount}>{radar.foco.length}</span></div>
           <div className={styles.radarList}>
             {radar.foco.map(t => (
-              <RadarItem key={t.id} task={t} project={projById(t.projectId)} active={timerActive && timerTaskId === t.id} signal={t.status === 'aguardando' ? 'cobrar hoje' : null} actions={<>{startBtn(t)}{completeBtn(t)}</>} />
+              <RadarItem key={t.id} task={t} project={projById(t.projectId)} active={timerActive && timerTaskId === t.id} signal={t.status === 'aguardando' ? 'cobrar hoje' : null}
+                actions={<>{startBtn(t)}{completeBtn(t)}
+                  <button className={styles.radarAction} onClick={() => onRemoveFocus(t)} aria-label="Remover do foco do dia" title="Remover do foco do dia">
+                    <i className="ti ti-star-off" aria-hidden="true" />
+                  </button>
+                </>} />
             ))}
           </div>
         </div>

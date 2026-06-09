@@ -539,7 +539,7 @@ export default function App() {
         />
 
         <RadarBar radar={radar} projById={projById} today={today} timerActive={timerActive} timerTaskId={timerTaskId}
-          onComplete={t => completeTask(t.id)} onBringBack={t => toAberta(t.id)} onStartTimer={startTimerFromTask} />
+          onComplete={t => completeTask(t.id)} onBringBack={t => toAberta(t.id)} onStartTimer={startTimerFromTask} onRemoveFocus={t => toggleFocus(t.id)} />
 
         {/* ── Visão por projeto ── */}
         <section className={styles.projectsZone}>
