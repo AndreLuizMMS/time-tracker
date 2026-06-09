@@ -59,7 +59,7 @@ function TaskRow({ task, categories, projects, today, timerActive, secsByTask, t
           {task.status !== 'concluida' && (
             <TimeLogControl onLog={(secs, conclude) => a.logTime(task, secs, conclude)} />
           )}
-          <button className={styles.iconAction} onClick={() => setEditing(true)} aria-label="Editar" title="Editar">
+          <button className={styles.iconAction} onClick={() => a.edit(task)} aria-label="Editar tarefa" title="Editar todos os campos">
             <i className="ti ti-pencil" aria-hidden="true" />
           </button>
           <button className={`${styles.iconAction} ${styles.iconActionDanger}`} onClick={() => a.remove(task.id)} aria-label="Remover tarefa">

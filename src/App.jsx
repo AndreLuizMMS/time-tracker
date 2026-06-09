@@ -14,7 +14,7 @@ import { TimerBar } from './components/TimerBar'
 import { RadarBar } from './components/RadarBar'
 import { ProjectColumn } from './components/ProjectColumn'
 import { ColaDaily } from './components/ColaDaily'
-import { EntryRow, DataMenu, ManualEntryForm, ProjectsManager, CategoriesManager, ColaEditDialog } from './components/managers'
+import { EntryRow, DataMenu, ManualEntryForm, ProjectsManager, CategoriesManager, ColaEditDialog, TaskEditDialog } from './components/managers'
 
 const DAILY_GOAL_SECS = 8 * 3600 // meta diária: 8h de trabalho
 
@@ -223,10 +223,34 @@ export default function App() {
     showNotice(conclude ? `${fmtClock(secs)} lançado · tarefa concluída` : `${fmtClock(secs)} lançado`)
   }
 
+  // edição completa de tarefa em dialog (aba de projeto)
+  const [taskEdit, setTaskEdit] = useState(null)
+  const saveTaskEdit = patch => {
+    if (!taskEdit) return
+    const id = taskEdit.id
+    updateTask(id, t => ({
+      title: patch.title.trim() || t.title,
+      projectId: patch.projectId,
+      categoryId: patch.categoryId,
+      priority: patch.priority,
+      deadline: patch.deadline ?? null,
+      blocking: patch.blocking,
+      todayDate: patch.focus ? today : null,
+    }))
+    if (patch.status !== taskEdit.status) {
+      if (patch.status === 'aberta') toAberta(id)
+      else if (patch.status === 'aguardando') toAguardando(id)
+      else if (patch.status === 'concluida') completeTask(id)
+    }
+    if (patch.status === 'aguardando') setWaitingPerson(id, patch.waitingPerson)
+    if (patch.categoryId != null) setLastCategoryId(patch.categoryId)
+    setTaskEdit(null)
+  }
+
   const taskActions = {
     setPriority, toggleBlocking, toAberta, toAguardando, toConcluida: completeTask, reopen,
     setWaitingPerson, setDeadline, toggleFocus, setProject: setTaskProject, setCategory: setTaskCategory,
-    startTimer: startTimerFromTask, remove: removeTask, commitTitle, logTime: logTaskTime,
+    startTimer: startTimerFromTask, remove: removeTask, commitTitle, logTime: logTaskTime, edit: setTaskEdit,
   }
 
   // ── Projects CRUD ──
@@ -760,6 +784,11 @@ export default function App() {
 
       {colaEdit && (
         <ColaEditDialog item={colaEdit} onSave={saveColaEdit} onCancel={() => setColaEdit(null)} />
+      )}
+
+      {taskEdit && (
+        <TaskEditDialog task={taskEdit} categories={categories} projects={projects} today={today}
+          onSave={saveTaskEdit} onCancel={() => setTaskEdit(null)} />
       )}
 
       {showHelp && (

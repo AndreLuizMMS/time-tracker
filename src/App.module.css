@@ -2322,6 +2322,15 @@
   gap: 12px;
   margin-bottom: 14px;
 }
+.taskEditCheck {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.taskEditCheck input { accent-color: var(--primary); width: 16px; height: 16px; }
 .helpTitle {
   display: flex;
   align-items: center;

@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import styles from '../App.module.css'
 import { fmtClock, timeToSecs, secsToTime, todayStr } from '../lib/format'
-import { GERAL_ID, parseProjectId, parseCategoryId } from '../lib/storage'
+import { GERAL_ID, parseProjectId, parseCategoryId, PRIORITY_LABELS, STATUS_LABELS } from '../lib/storage'
 import { ColorSwatch, TimeField, DateField, useDismiss } from './pickers'
 
 // ─── Entry row (entrada de tempo) ─────────────────────────────────────────────
@@ -196,6 +196,106 @@ export function ColaEditDialog({ item, onSave, onCancel }) {
             <DateField value={date} onChange={setDate} />
           </div>
         )}
+        <div className={styles.manualFooter}>
+          <button type="button" className={styles.btnSecondary} onClick={onCancel}>Cancelar</button>
+          <button type="submit" className={styles.btnPrimary}>Salvar</button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+// ─── Dialog de edição completa de tarefa (aba de projeto) ─────────────────────
+export function TaskEditDialog({ task, categories, projects, today, onSave, onCancel }) {
+  const [title, setTitle] = useState(task.title)
+  const [projectId, setProjectId] = useState(task.projectId)
+  const [categoryId, setCategoryId] = useState(task.categoryId ?? null)
+  const [priority, setPriority] = useState(task.priority)
+  const [status, setStatus] = useState(task.status)
+  const [deadline, setDeadline] = useState(task.deadline ?? null)
+  const [blocking, setBlocking] = useState(!!task.blocking)
+  const [focus, setFocus] = useState(task.todayDate === today)
+  const [waitingPerson, setWaitingPerson] = useState(task.waitingPerson ?? '')
+  const submit = e => {
+    e.preventDefault()
+    if (!title.trim()) return
+    onSave({ title, projectId, categoryId, priority, status, deadline, blocking, focus, waitingPerson: waitingPerson.trim() || null })
+  }
+  return (
+    <div className={styles.helpOverlay} role="dialog" aria-modal="true" aria-label="Editar tarefa" onClick={onCancel}>
+      <form className={styles.helpModal} onClick={e => e.stopPropagation()} onSubmit={submit} style={{ maxWidth: 460 }}>
+        <div className={styles.helpHead}>
+          <span className={styles.helpTitle}><i className="ti ti-pencil" aria-hidden="true" />Editar tarefa</span>
+          <button type="button" className={styles.iconBtn} onClick={onCancel} aria-label="Fechar"><i className="ti ti-x" aria-hidden="true" /></button>
+        </div>
+        <div className={styles.formGroup} style={{ marginBottom: '12px' }}>
+          <label className={styles.formLabel}>Nome</label>
+          <input className={styles.formInput} value={title} onChange={e => setTitle(e.target.value)} placeholder="Nome da tarefa" autoFocus />
+        </div>
+        <div className={styles.manualGrid}>
+          <div className={styles.formGroup}>
+            <label className={styles.formLabel}>Projeto</label>
+            <div className={styles.selectWrap}>
+              <select className={styles.formSelect} value={projectId} onChange={e => setProjectId(parseProjectId(e.target.value))}>
+                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+              <i className={`ti ti-chevron-down ${styles.selectIcon}`} aria-hidden="true" />
+            </div>
+          </div>
+          <div className={styles.formGroup}>
+            <label className={styles.formLabel}>Categoria</label>
+            <div className={styles.selectWrap}>
+              <select className={styles.formSelect} value={categoryId ?? ''} onChange={e => setCategoryId(parseCategoryId(e.target.value))}>
+                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                <option value="">Sem categoria</option>
+              </select>
+              <i className={`ti ti-chevron-down ${styles.selectIcon}`} aria-hidden="true" />
+            </div>
+          </div>
+          <div className={styles.formGroup}>
+            <label className={styles.formLabel}>Prioridade</label>
+            <div className={styles.selectWrap}>
+              <select className={styles.formSelect} value={priority} onChange={e => setPriority(Number(e.target.value))}>
+                {[1, 2, 3, 4].map(p => <option key={p} value={p}>P{p} · {PRIORITY_LABELS[p - 1]}</option>)}
+              </select>
+              <i className={`ti ti-chevron-down ${styles.selectIcon}`} aria-hidden="true" />
+            </div>
+          </div>
+          <div className={styles.formGroup}>
+            <label className={styles.formLabel}>Status</label>
+            <div className={styles.selectWrap}>
+              <select className={styles.formSelect} value={status} onChange={e => setStatus(e.target.value)}>
+                {['aberta', 'aguardando', 'concluida'].map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
+              </select>
+              <i className={`ti ti-chevron-down ${styles.selectIcon}`} aria-hidden="true" />
+            </div>
+          </div>
+        </div>
+        {status === 'aguardando' && (
+          <div className={styles.formGroup} style={{ marginTop: '12px' }}>
+            <label className={styles.formLabel}>Aguardando quem?</label>
+            <input className={styles.formInput} value={waitingPerson} onChange={e => setWaitingPerson(e.target.value)} placeholder="Pessoa (opcional)" />
+          </div>
+        )}
+        <div className={styles.formGroup} style={{ marginTop: '12px' }}>
+          <label className={styles.formLabel}>Prazo</label>
+          {deadline ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <DateField value={deadline} onChange={setDeadline} />
+              <button type="button" className={styles.btnSecondary} onClick={() => setDeadline(null)}><i className="ti ti-x" aria-hidden="true" /> Remover</button>
+            </div>
+          ) : (
+            <button type="button" className={styles.btnSecondary} onClick={() => setDeadline(today)}><i className="ti ti-flag" aria-hidden="true" /> Definir prazo</button>
+          )}
+        </div>
+        <div className={styles.formGroup} style={{ marginTop: '12px', flexDirection: 'row', gap: 18, alignItems: 'center' }}>
+          <label className={styles.taskEditCheck}>
+            <input type="checkbox" checked={focus} onChange={e => setFocus(e.target.checked)} /> Foco de hoje
+          </label>
+          <label className={styles.taskEditCheck}>
+            <input type="checkbox" checked={blocking} onChange={e => setBlocking(e.target.checked)} /> Bloqueante
+          </label>
+        </div>
         <div className={styles.manualFooter}>
           <button type="button" className={styles.btnSecondary} onClick={onCancel}>Cancelar</button>
           <button type="submit" className={styles.btnPrimary}>Salvar</button>
