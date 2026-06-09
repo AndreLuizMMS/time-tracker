@@ -16,7 +16,7 @@ function ProjGroup({ project, children }) {
 }
 
 // cola do daily — três blocos derivados (fiz / vou fazer / aguardando), agrupados por projeto
-export function ColaDaily({ cola, projects, today, timerActive, selectedDay, onSelectDay, onStartTimer, onComplete }) {
+export function ColaDaily({ cola, projects, today, timerActive, selectedDay, onSelectDay, onEditItem, onStartTimer, onComplete }) {
   const { lastDay, fizEntries, fizLoose, fizDone, vouFazer, bloqueios } = cola
   const lastDayTotal = fizEntries.reduce((s, e) => s + e.dur, 0)
   const canNext = lastDay < today
@@ -31,6 +31,12 @@ export function ColaDaily({ cola, projects, today, timerActive, selectedDay, onS
     .filter(g => g.done.length > 0 || g.loose.length > 0)
   const vouByProj = groupByProject(vouFazer, projects)
   const bloqByProj = groupByProject(bloqueios, projects)
+
+  const editBtn = (kind, obj) => (
+    <button type="button" className={styles.iconAction} onClick={() => onEditItem(kind, obj)} aria-label="Editar" title="Editar nome e data">
+      <i className="ti ti-pencil" aria-hidden="true" />
+    </button>
+  )
 
   return (
     <section className={styles.colaCard}>
@@ -67,13 +73,15 @@ export function ColaDaily({ cola, projects, today, timerActive, selectedDay, onS
                 <li key={`d${t.id}`} className={`${styles.colaItem} ${styles.colaItemDone}`}>
                   <span className={styles.colaCheck} aria-hidden="true"><i className="ti ti-check" /></span>
                   <span className={styles.colaItemText}>{t.title}</span>
-                  {t.secs > 0 && <span className={styles.colaItemMeta}>{fmtHoursDec(t.secs)}</span>}
+                  {t.secs > 0 && <span className={styles.colaItemMeta}>{fmtClock(t.secs)}</span>}
+                  <div className={styles.colaActions}>{editBtn('task', t)}</div>
                 </li>
               ))}
               {g.loose.map(e => (
                 <li key={`e${e.id}`} className={styles.colaItem}>
                   <span className={styles.colaItemText}>{e.desc}</span>
-                  <span className={styles.colaItemMeta}>{fmtHoursDec(e.dur)}</span>
+                  <span className={styles.colaItemMeta}>{fmtClock(e.dur)}</span>
+                  <div className={styles.colaActions}>{editBtn('entry', e)}</div>
                 </li>
               ))}
             </ProjGroup>
@@ -98,6 +106,7 @@ export function ColaDaily({ cola, projects, today, timerActive, selectedDay, onS
                 <li key={t.id} className={styles.colaItem}>
                   <span className={styles.colaItemText}>{t.title}</span>
                   <div className={styles.colaActions}>
+                    {editBtn('task', t)}
                     <button className={styles.iconAction} onClick={() => onStartTimer(t)} disabled={timerActive} aria-label="Iniciar timer" title={timerActive ? 'Timer em andamento' : 'Iniciar timer'}>
                       <i className="ti ti-player-play" aria-hidden="true" />
                     </button>
@@ -133,6 +142,7 @@ export function ColaDaily({ cola, projects, today, timerActive, selectedDay, onS
                   ) : (
                     <span className={styles.colaBlockTag}><i className="ti ti-alert-octagon" aria-hidden="true" />bloqueante</span>
                   )}
+                  <div className={styles.colaActions}>{editBtn('task', t)}</div>
                 </li>
               ))}
             </ProjGroup>

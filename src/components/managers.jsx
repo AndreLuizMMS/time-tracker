@@ -170,6 +170,41 @@ export function ManualEntryForm({ editing, projects, categories, defaultProjectI
   )
 }
 
+// ─── Dialog de edição rápida (cola da daily) — Nome + data de conclusão ───────
+export function ColaEditDialog({ item, onSave, onCancel }) {
+  const [title, setTitle] = useState(item.title)
+  const [date, setDate] = useState(item.date ?? todayStr())
+  const submit = e => {
+    e.preventDefault()
+    if (item.kind === 'task' && !title.trim()) return
+    onSave({ title, date: item.hasDate ? date : null })
+  }
+  return (
+    <div className={styles.helpOverlay} role="dialog" aria-modal="true" aria-label="Editar item" onClick={onCancel}>
+      <form className={styles.helpModal} onClick={e => e.stopPropagation()} onSubmit={submit}>
+        <div className={styles.helpHead}>
+          <span className={styles.helpTitle}><i className="ti ti-pencil" aria-hidden="true" />Editar {item.kind === 'entry' ? 'entrada' : 'tarefa'}</span>
+          <button type="button" className={styles.iconBtn} onClick={onCancel} aria-label="Fechar"><i className="ti ti-x" aria-hidden="true" /></button>
+        </div>
+        <div className={styles.formGroup} style={{ marginBottom: '12px' }}>
+          <label className={styles.formLabel}>Nome</label>
+          <input className={styles.formInput} value={title} onChange={e => setTitle(e.target.value)} placeholder="Nome" autoFocus />
+        </div>
+        {item.hasDate && (
+          <div className={styles.formGroup} style={{ marginBottom: '12px' }}>
+            <label className={styles.formLabel}>Data de conclusão</label>
+            <DateField value={date} onChange={setDate} />
+          </div>
+        )}
+        <div className={styles.manualFooter}>
+          <button type="button" className={styles.btnSecondary} onClick={onCancel}>Cancelar</button>
+          <button type="submit" className={styles.btnPrimary}>Salvar</button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
 // ─── Collapsible section shell (reuso para os dois gerenciadores) ─────────────
 function ManagerSection({ icon, title, count, open, onToggle, children }) {
   return (

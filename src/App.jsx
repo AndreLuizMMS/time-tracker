@@ -14,7 +14,7 @@ import { TimerBar } from './components/TimerBar'
 import { RadarBar } from './components/RadarBar'
 import { ProjectColumn } from './components/ProjectColumn'
 import { ColaDaily } from './components/ColaDaily'
-import { EntryRow, DataMenu, ManualEntryForm, ProjectsManager, CategoriesManager } from './components/managers'
+import { EntryRow, DataMenu, ManualEntryForm, ProjectsManager, CategoriesManager, ColaEditDialog } from './components/managers'
 
 const DAILY_GOAL_SECS = 8 * 3600 // meta diária: 8h de trabalho
 
@@ -279,6 +279,32 @@ export default function App() {
     })
     rememberCapture(data.projectId, data.categoryId)
     closeManual()
+  }
+
+  // ── Edição rápida pela cola da daily (Nome + data de conclusão) ──
+  const [colaEdit, setColaEdit] = useState(null) // { kind: 'task'|'entry', id, title, date, hasDate }
+  const openColaEdit = (kind, obj) => {
+    if (kind === 'entry') {
+      setColaEdit({ kind, id: obj.id, title: obj.desc === 'Sem descrição' ? '' : obj.desc, date: obj.date, hasDate: true })
+    } else {
+      const date = obj.completedAt ? localDateStr(new Date(obj.completedAt)) : null
+      setColaEdit({ kind, id: obj.id, title: obj.title, date, hasDate: obj.status === 'concluida' && !!obj.completedAt })
+    }
+  }
+  const saveColaEdit = ({ title, date }) => {
+    const c = colaEdit
+    if (!c) return
+    const name = title.trim()
+    if (c.kind === 'task') {
+      updateTask(c.id, t => ({ title: name || t.title, ...(c.hasDate && date ? { completedAt: new Date(date + 'T12:00:00').getTime() } : {}) }))
+    } else {
+      setEntries(prev => {
+        const next = prev.map(x => x.id === c.id ? { ...x, desc: name || 'Sem descrição', date: date || x.date } : x)
+        next.sort((a, b) => b.date.localeCompare(a.date) || b.start.localeCompare(a.start))
+        return next
+      })
+    }
+    setColaEdit(null)
   }
 
   const deleteEntry = id => {
@@ -601,7 +627,7 @@ export default function App() {
         <div className={styles.lower}>
           <div className={styles.lowerLeft}>
             <ColaDaily cola={cola} projects={projects} today={today} timerActive={timerActive}
-              selectedDay={colaDay} onSelectDay={setColaDay}
+              selectedDay={colaDay} onSelectDay={setColaDay} onEditItem={openColaEdit}
               onStartTimer={startTimerFromTask} onComplete={toConcluida} />
             <ProjectsManager projects={projects} open={projectsManagerOpen} onToggle={() => setProjectsManagerOpen(o => !o)}
               onAdd={addProject} onRename={renameProject} onRecolor={recolorProject} onDelete={deleteProject} onToggleHidden={toggleHiddenProject} />
@@ -728,6 +754,10 @@ export default function App() {
       )}
       {notice && (
         <div className={styles.noticeToast} role="status"><i className="ti ti-info-circle" aria-hidden="true" />{notice}</div>
+      )}
+
+      {colaEdit && (
+        <ColaEditDialog item={colaEdit} onSave={saveColaEdit} onCancel={() => setColaEdit(null)} />
       )}
 
       {showHelp && (
