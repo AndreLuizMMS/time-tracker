@@ -8,9 +8,9 @@ function deadlineText(deadline, today) {
   return `venceu ${d.getDate()}/${d.getMonth() + 1}`
 }
 
-function RadarItem({ task, project, signal, actions }) {
+function RadarItem({ task, project, signal, actions, active }) {
   return (
-    <div className={styles.radarItem} style={{ '--accent': project?.color || FALLBACK_COLOR }}>
+    <div className={`${styles.radarItem} ${active ? styles.radarItemActive : ''}`} style={{ '--accent': project?.color || FALLBACK_COLOR }}>
       <span className={styles.radarDot} aria-hidden="true" />
       <span className={styles.radarText}>
         <span className={styles.radarTitle}>{task.title}</span>
@@ -25,7 +25,7 @@ function RadarItem({ task, project, signal, actions }) {
 }
 
 // radar transversal — ignora projeto, agrupa por tipo de urgência; só leitura + ação rápida
-export function RadarBar({ radar, projById, today, onComplete, onBringBack, onStartTimer, timerActive }) {
+export function RadarBar({ radar, projById, today, onComplete, onBringBack, onStartTimer, timerActive, timerTaskId }) {
   if (radar.isEmpty) {
     return (
       <section className={`${styles.radar} ${styles.radarCalm}`} aria-label="Radar">
@@ -88,7 +88,7 @@ export function RadarBar({ radar, projById, today, onComplete, onBringBack, onSt
           <div className={styles.radarGroupLabel}><i className="ti ti-star" aria-hidden="true" />Foco do dia<span className={styles.radarCount}>{radar.foco.length}</span></div>
           <div className={styles.radarList}>
             {radar.foco.map(t => (
-              <RadarItem key={t.id} task={t} project={projById(t.projectId)} signal={t.status === 'aguardando' ? 'cobrar hoje' : null} actions={<>{startBtn(t)}{completeBtn(t)}</>} />
+              <RadarItem key={t.id} task={t} project={projById(t.projectId)} active={timerActive && timerTaskId === t.id} signal={t.status === 'aguardando' ? 'cobrar hoje' : null} actions={<>{startBtn(t)}{completeBtn(t)}</>} />
             ))}
           </div>
         </div>

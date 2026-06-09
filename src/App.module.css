@@ -2473,6 +2473,19 @@
   border-radius: var(--radius-full);
   background: var(--accent, var(--primary));
 }
+/* tarefa em foco com cronômetro ativo — realce + ponto pulsante na cor do projeto */
+.radarItemActive {
+  border-color: var(--accent, var(--primary));
+  box-shadow: inset 0 0 0 1px var(--accent, var(--primary));
+}
+.radarItemActive .radarDot {
+  animation: radarPulse 2s var(--ease-in-out) infinite;
+}
+@keyframes radarPulse {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent, var(--primary)) 55%, transparent); }
+  70%  { box-shadow: 0 0 0 7px color-mix(in srgb, var(--accent, var(--primary)) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent, var(--primary)) 0%, transparent); }
+}
 .radarText { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .radarTitle {
   font-size: var(--text-sm);

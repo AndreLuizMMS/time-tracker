@@ -510,7 +510,7 @@ export default function App() {
           onStart={startTimer} onStop={stopTimer} onDiscard={discardTimer} onStartTimeChange={setTimerStartTime}
         />
 
-        <RadarBar radar={radar} projById={projById} today={today} timerActive={timerActive}
+        <RadarBar radar={radar} projById={projById} today={today} timerActive={timerActive} timerTaskId={timerTaskId}
           onComplete={t => toConcluida(t.id)} onBringBack={t => toAberta(t.id)} onStartTimer={startTimerFromTask} />
 
         {/* ── Visão por projeto ── */}
