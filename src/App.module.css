@@ -1210,8 +1210,8 @@
   flex-shrink: 0;
 }
 
-/* mantém o seletor de início compacto dentro da band horizontal */
-.timerStartEdit .field { width: 128px; }
+/* mantém o seletor de início compacto dentro da band horizontal (largura p/ não cortar HH:MM) */
+.timerStartEdit .field { width: 152px; }
 
 .timerStartLabel {
   display: inline-flex;
@@ -2872,6 +2872,7 @@
 
 /* ─── Chip picker (projeto / categoria) ──────────────── */
 .chipWrap { position: relative; }
+.chipWrapLg { flex-shrink: 0; }
 .chipPick {
   display: inline-flex;
   align-items: center;
@@ -2894,6 +2895,24 @@
 @media (hover: hover) and (pointer: fine) {
   .chipPick:hover { border-color: var(--border-strong); color: var(--text-primary); }
 }
+
+/* variante grande — alinha o select custom à altura dos campos da timer band */
+.chipPickLg {
+  height: 44px;
+  gap: 9px;
+  padding: 0 14px;
+  min-width: 150px;
+  max-width: 220px;
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+.chipPickLg .chipDot { width: 9px; height: 9px; }
+.chipPickLg .chipIcon { font-size: 16px; }
+.chipPickLg .chipLabel { flex: 1; max-width: none; text-align: left; }
+.chipPickLg .chipChevron { font-size: 16px; transition: transform var(--transition-normal) var(--ease-out); }
+.chipPickLg[aria-expanded='true'] { border-color: var(--primary); }
+.chipPickLg[aria-expanded='true'] .chipChevron { transform: rotate(180deg); }
 .chipPop {
   position: absolute;
   z-index: 40;
