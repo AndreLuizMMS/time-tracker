@@ -199,6 +199,8 @@ export default function App() {
   const toAberta = id => updateTask(id, { status: 'aberta', waitingSince: null, waitingPerson: null, completedAt: null })
   const toConcluida = id => updateTask(id, { status: 'concluida', completedAt: Date.now(), waitingSince: null, waitingPerson: null })
   const reopen = id => updateTask(id, { status: 'aberta', completedAt: null, waitingSince: null, waitingPerson: null })
+  // concluir pela UI: se a tarefa está com o cronômetro ativo, para o timer (salva o tempo) antes de concluir
+  const completeTask = id => { if (timerActive && timerTaskId === id) stopTimer(); toConcluida(id) }
 
   // lança um bloco de tempo manual direto numa tarefa (entry de hoje, vinculada à tarefa);
   // compõe o total como qualquer entrada. conclude=true também fecha a tarefa.
@@ -222,7 +224,7 @@ export default function App() {
   }
 
   const taskActions = {
-    setPriority, toggleBlocking, toAberta, toAguardando, toConcluida, reopen,
+    setPriority, toggleBlocking, toAberta, toAguardando, toConcluida: completeTask, reopen,
     setWaitingPerson, setDeadline, toggleFocus, setProject: setTaskProject, setCategory: setTaskCategory,
     startTimer: startTimerFromTask, remove: removeTask, commitTitle, logTime: logTaskTime,
   }
@@ -537,7 +539,7 @@ export default function App() {
         />
 
         <RadarBar radar={radar} projById={projById} today={today} timerActive={timerActive} timerTaskId={timerTaskId}
-          onComplete={t => toConcluida(t.id)} onBringBack={t => toAberta(t.id)} onStartTimer={startTimerFromTask} />
+          onComplete={t => completeTask(t.id)} onBringBack={t => toAberta(t.id)} onStartTimer={startTimerFromTask} />
 
         {/* ── Visão por projeto ── */}
         <section className={styles.projectsZone}>
@@ -628,7 +630,7 @@ export default function App() {
           <div className={styles.lowerLeft}>
             <ColaDaily cola={cola} projects={projects} today={today} timerActive={timerActive}
               selectedDay={colaDay} onSelectDay={setColaDay} onEditItem={openColaEdit}
-              onStartTimer={startTimerFromTask} onComplete={toConcluida} />
+              onStartTimer={startTimerFromTask} onComplete={completeTask} />
             <ProjectsManager projects={projects} open={projectsManagerOpen} onToggle={() => setProjectsManagerOpen(o => !o)}
               onAdd={addProject} onRename={renameProject} onRecolor={recolorProject} onDelete={deleteProject} onToggleHidden={toggleHiddenProject} />
             <CategoriesManager categories={categories} open={categoriesManagerOpen} onToggle={() => setCategoriesManagerOpen(o => !o)}
