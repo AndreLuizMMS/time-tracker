@@ -20,9 +20,11 @@ export function fmtHM(secs) {
   return `${h}h ${m}min`
 }
 
-export function fmtHoursDec(secs) {
-  const h = Math.round((secs / 3600) * 100) / 100
-  return `${h}h`
+// duração no relógio HH:MM (sem segundos); suporta >24h (ex.: 1800s → "00:30", 30600s → "08:30")
+export function fmtClock(secs) {
+  const h = Math.floor(secs / 3600)
+  const m = Math.floor((secs % 3600) / 60)
+  return `${pad2(h)}:${pad2(m)}`
 }
 
 export function timeToSecs(t) {

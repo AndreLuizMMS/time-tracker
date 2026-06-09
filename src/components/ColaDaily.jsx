@@ -1,5 +1,5 @@
 import styles from '../App.module.css'
-import { fmtHoursDec, localDateStr, addDays } from '../lib/format'
+import { fmtClock, localDateStr, addDays } from '../lib/format'
 import { FALLBACK_COLOR } from '../lib/storage'
 import { groupByProject, businessDaysSince } from '../lib/selectors'
 import { DateField } from './pickers'
@@ -56,7 +56,7 @@ export function ColaDaily({ cola, projects, today, timerActive, selectedDay, onS
               </button>
             )}
           </div>
-          {lastDayTotal > 0 && <span className={styles.colaBlockMeta}>{fmtHoursDec(lastDayTotal)}</span>}
+          {lastDayTotal > 0 && <span className={styles.colaBlockMeta}>{fmtClock(lastDayTotal)}</span>}
         </div>
         {fizByProj.length === 0 ? (
           <p className={styles.colaEmpty}>Nada registrado ainda.</p>

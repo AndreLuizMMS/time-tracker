@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import styles from '../App.module.css'
-import { fmtHoursDec, timeToSecs, secsToTime, todayStr } from '../lib/format'
+import { fmtClock, timeToSecs, secsToTime, todayStr } from '../lib/format'
 import { GERAL_ID, parseProjectId, parseCategoryId } from '../lib/storage'
 import { ColorSwatch, TimeField, DateField, useDismiss } from './pickers'
 
@@ -42,7 +42,7 @@ export function EntryRow({ entry, project, category, editing, onEdit, onDelete, 
         </span>
         {category && <span className={styles.entryCat}>{category.name}</span>}
         <span className={styles.entryRange}>{entry.start} – {entry.end}</span>
-        <span className={styles.entryDur}>{fmtHoursDec(entry.dur)}</span>
+        <span className={styles.entryDur}>{fmtClock(entry.dur)}</span>
       </div>
     </div>
   )

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import styles from './App.module.css'
 import {
-  fmtDur, fmtHoursDec, fmtDate, timeToSecs, secsToTime,
+  fmtDur, fmtClock, fmtDate, timeToSecs, secsToTime,
   localDateStr, todayStr, addDays, csvCell, downloadFile,
 } from './lib/format'
 import {
@@ -165,7 +165,7 @@ export default function App() {
   }
 
   const copyEntryHours = async entry => {
-    try { await navigator.clipboard.writeText(fmtHoursDec(entry.dur).replace('h', '')); return true } catch { return false }
+    try { await navigator.clipboard.writeText(fmtClock(entry.dur)); return true } catch { return false }
   }
 
   const timerStartStr = timerStart
@@ -218,7 +218,7 @@ export default function App() {
       return next
     })
     if (conclude) toConcluida(task.id)
-    showNotice(conclude ? `${fmtHoursDec(secs)} lançado · tarefa concluída` : `${fmtHoursDec(secs)} lançado`)
+    showNotice(conclude ? `${fmtClock(secs)} lançado · tarefa concluída` : `${fmtClock(secs)} lançado`)
   }
 
   const taskActions = {
@@ -302,10 +302,10 @@ export default function App() {
   // ── Backup ──
   const exportCsv = () => {
     if (entries.length === 0) { showNotice('Nada para exportar'); return }
-    const header = ['Data', 'Início', 'Fim', 'Duração (h)', 'Projeto', 'Categoria', 'Descrição']
+    const header = ['Data', 'Início', 'Fim', 'Duração (hh:mm)', 'Projeto', 'Categoria', 'Descrição']
     const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start))
     const lines = [header, ...sorted.map(e => [
-      e.date, e.start, e.end, (e.dur / 3600).toFixed(2).replace('.', ','), projName(e.projectId), catName(e.categoryId), e.desc,
+      e.date, e.start, e.end, fmtClock(e.dur), projName(e.projectId), catName(e.categoryId), e.desc,
     ])]
     const csv = '﻿' + lines.map(r => r.map(csvCell).join(';')).join('\r\n')
     downloadFile(`time-tracker-${todayStr()}.csv`, csv, 'text/csv;charset=utf-8')
@@ -473,9 +473,9 @@ export default function App() {
           </div>
           <div className={styles.headerStats}>
             <div className={`${styles.kpi} ${styles.kpiPrimary} ${styles.kpiGoal} ${goalMet ? styles.kpiGoalMet : ''}`}>
-              <span className={styles.kpiLabel}>Hoje · meta {fmtHoursDec(DAILY_GOAL_SECS)}</span>
+              <span className={styles.kpiLabel}>Hoje · meta {fmtClock(DAILY_GOAL_SECS)}</span>
               <span className={styles.kpiValue}>
-                {fmtHoursDec(todayLive)}<span className={styles.kpiGoalTarget}> / {fmtHoursDec(DAILY_GOAL_SECS)}</span>
+                {fmtClock(todayLive)}<span className={styles.kpiGoalTarget}> / {fmtClock(DAILY_GOAL_SECS)}</span>
                 <span className={styles.kpiGoalPct}>{goalMet && <i className="ti ti-circle-check" aria-hidden="true" />}{goalPct}%</span>
               </span>
               <div className={styles.goalBar} role="progressbar" aria-valuenow={Math.min(100, goalPct)} aria-valuemin={0} aria-valuemax={100} aria-label="Progresso da meta diária">
@@ -483,9 +483,9 @@ export default function App() {
               </div>
             </div>
             <span className={styles.kpiDivider} aria-hidden="true" />
-            <div className={styles.kpi}><span className={styles.kpiLabel}>Semana</span><span className={styles.kpiValue}>{fmtHoursDec(weekTotal)}</span></div>
+            <div className={styles.kpi}><span className={styles.kpiLabel}>Semana</span><span className={styles.kpiValue}>{fmtClock(weekTotal)}</span></div>
             <span className={styles.kpiDivider} aria-hidden="true" />
-            <div className={styles.kpi}><span className={styles.kpiLabel}>Total</span><span className={styles.kpiValue}>{fmtHoursDec(totalAll)}</span></div>
+            <div className={styles.kpi}><span className={styles.kpiLabel}>Total</span><span className={styles.kpiValue}>{fmtClock(totalAll)}</span></div>
           </div>
           <div className={styles.headerActions}>
             <button type="button" className={styles.iconBtn} onClick={cycleTheme} aria-label={`Tema: ${themeLabel}`} title={`Tema: ${themeLabel} (clique p/ alternar)`}>
@@ -681,7 +681,7 @@ export default function App() {
                   <>
                     {catTotals.length > 1 && (
                       <div className={styles.breakdown}>
-                        <div className={styles.breakdownHead}><span className={styles.breakdownTitle}>Por categoria</span><span className={styles.breakdownSum}>{fmtHoursDec(breakdownTotal)}</span></div>
+                        <div className={styles.breakdownHead}><span className={styles.breakdownTitle}>Por categoria</span><span className={styles.breakdownSum}>{fmtClock(breakdownTotal)}</span></div>
                         {catTotals.map(p => (
                           <button
                             key={p.id ?? 'none'}
@@ -692,7 +692,7 @@ export default function App() {
                           >
                             <span className={styles.breakdownName}><span className={styles.breakdownDot} style={{ background: p.color }} aria-hidden="true" />{p.name}</span>
                             <div className={styles.breakdownTrack}><div className={styles.breakdownBar} style={{ width: `${(p.dur / breakdownMax) * 100}%`, background: p.color }} /></div>
-                            <span className={styles.breakdownVal}>{fmtHoursDec(p.dur)}</span>
+                            <span className={styles.breakdownVal}>{fmtClock(p.dur)}</span>
                           </button>
                         ))}
                       </div>
@@ -701,7 +701,7 @@ export default function App() {
                       <div className={styles.dayGroup} key={day}>
                         <div className={styles.dayHeader}>
                           <span className={styles.dayName}>{fmtDate(day)}</span>
-                          <span className={styles.dayTotal}>{fmtHoursDec(grouped[day].reduce((s, e) => s + e.dur, 0))}</span>
+                          <span className={styles.dayTotal}>{fmtClock(grouped[day].reduce((s, e) => s + e.dur, 0))}</span>
                         </div>
                         {grouped[day].map(entry => (
                           <EntryRow key={entry.id} entry={entry}

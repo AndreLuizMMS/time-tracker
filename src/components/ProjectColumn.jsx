@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import styles from '../App.module.css'
-import { fmtHoursDec, fmtDate, localDateStr } from '../lib/format'
+import { fmtClock, fmtDate, localDateStr } from '../lib/format'
 import { FALLBACK_COLOR } from '../lib/storage'
 import { taskSignals } from '../lib/selectors'
 import { PriorityPicker, StatusControl, WaitingControl, DeadlineControl, ChipPicker, TimeLogControl } from './pickers'
@@ -10,7 +10,7 @@ function TimeBadge({ secs, running }) {
   if (secs <= 0) return null
   return (
     <span className={`${styles.taskTimeBadge} ${running ? styles.taskTimeBadgeRunning : ''}`} title={running ? 'Tempo consumido (rodando)' : 'Tempo consumido'}>
-      <i className="ti ti-clock-hour-4" aria-hidden="true" />{fmtHoursDec(secs)}
+      <i className="ti ti-clock-hour-4" aria-hidden="true" />{fmtClock(secs)}
     </span>
   )
 }
@@ -146,7 +146,7 @@ export function ProjectColumn({ vm, categories, projects, today, timerActive, se
         <span className={styles.projectDot} aria-hidden="true" />
         <span className={styles.projectName}>{project.name}</span>
         <span className={styles.projectOpenCount} title="Tarefas abertas">{openCount}</span>
-        <span className={styles.projectPeriod} title={`Tempo ${periodLabel}`}>{fmtHoursDec(periodSecs)}</span>
+        <span className={styles.projectPeriod} title={`Tempo ${periodLabel}`}>{fmtClock(periodSecs)}</span>
       </button>
 
       {!collapsed && (
