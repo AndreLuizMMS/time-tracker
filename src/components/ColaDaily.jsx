@@ -6,6 +6,15 @@ import { DateField } from './pickers'
 
 const shiftDay = (day, n) => localDateStr(addDays(new Date(day + 'T12:00:00'), n))
 
+// corte do dia às 12:00 — manhã < 12h, tarde >= 12h
+const PERIODS = [
+  { key: 'manha', label: 'Manhã', icon: 'ti-sun' },
+  { key: 'tarde', label: 'Tarde', icon: 'ti-sunset-2' },
+]
+const periodOfHour = h => (h < 12 ? 'manha' : 'tarde')
+const donePeriod = t => periodOfHour(new Date(t.completedAt).getHours())
+const loosePeriod = e => periodOfHour(parseInt(e.start, 10) || 0)
+
 function ProjGroup({ project, children }) {
   return (
     <div className={styles.colaProjGroup} style={{ '--accent': project.color || FALLBACK_COLOR }}>
@@ -21,14 +30,21 @@ export function ColaDaily({ cola, projects, today, timerActive, selectedDay, onS
   const lastDayTotal = fizEntries.reduce((s, e) => s + e.dur, 0)
   const canNext = lastDay < today
 
-  // bloco "fiz" unificado por projeto: tarefas concluídas (com tempo) + entradas avulsas
-  const fizByProj = projects
-    .map(p => ({
-      project: p,
-      done: fizDone.filter(t => t.projectId === p.id),
-      loose: fizLoose.filter(e => e.projectId === p.id),
-    }))
-    .filter(g => g.done.length > 0 || g.loose.length > 0)
+  // bloco "fiz" dividido em manhã/tarde, e dentro de cada período agrupado por projeto
+  const fizByPeriod = PERIODS.map(per => {
+    const groups = projects
+      .map(p => ({
+        project: p,
+        done: fizDone.filter(t => t.projectId === p.id && donePeriod(t) === per.key),
+        loose: fizLoose.filter(e => e.projectId === p.id && loosePeriod(e) === per.key),
+      }))
+      .filter(g => g.done.length > 0 || g.loose.length > 0)
+    const total = groups.reduce(
+      (s, g) => s + g.done.reduce((a, t) => a + t.secs, 0) + g.loose.reduce((a, e) => a + e.dur, 0),
+      0,
+    )
+    return { ...per, groups, total }
+  }).filter(per => per.groups.length > 0)
   const vouByProj = groupByProject(vouFazer, projects)
   const bloqByProj = groupByProject(bloqueios, projects)
 
@@ -64,27 +80,35 @@ export function ColaDaily({ cola, projects, today, timerActive, selectedDay, onS
           </div>
           {lastDayTotal > 0 && <span className={styles.colaBlockMeta}>{fmtClock(lastDayTotal)}</span>}
         </div>
-        {fizByProj.length === 0 ? (
+        {fizByPeriod.length === 0 ? (
           <p className={styles.colaEmpty}>Nada registrado ainda.</p>
         ) : (
-          fizByProj.map(g => (
-            <ProjGroup key={`f${g.project.id}`} project={g.project}>
-              {g.done.map(t => (
-                <li key={`d${t.id}`} className={`${styles.colaItem} ${styles.colaItemDone}`}>
-                  <span className={styles.colaCheck} aria-hidden="true"><i className="ti ti-check" /></span>
-                  <span className={styles.colaItemText}>{t.title}</span>
-                  {t.secs > 0 && <span className={styles.colaItemMeta}>{fmtClock(t.secs)}</span>}
-                  <div className={styles.colaActions}>{editBtn('task', t)}</div>
-                </li>
+          fizByPeriod.map(per => (
+            <div key={per.key} className={styles.colaPeriod}>
+              <div className={styles.colaPeriodHead}>
+                <span className={styles.colaPeriodLabel}><i className={`ti ${per.icon}`} aria-hidden="true" />{per.label}</span>
+                {per.total > 0 && <span className={styles.colaPeriodMeta}>{fmtClock(per.total)}</span>}
+              </div>
+              {per.groups.map(g => (
+                <ProjGroup key={`f${per.key}${g.project.id}`} project={g.project}>
+                  {g.done.map(t => (
+                    <li key={`d${t.id}`} className={`${styles.colaItem} ${styles.colaItemDone}`}>
+                      <span className={styles.colaCheck} aria-hidden="true"><i className="ti ti-check" /></span>
+                      <span className={styles.colaItemText}>{t.title}</span>
+                      {t.secs > 0 && <span className={styles.colaItemMeta}>{fmtClock(t.secs)}</span>}
+                      <div className={styles.colaActions}>{editBtn('task', t)}</div>
+                    </li>
+                  ))}
+                  {g.loose.map(e => (
+                    <li key={`e${e.id}`} className={styles.colaItem}>
+                      <span className={styles.colaItemText}>{e.desc}</span>
+                      <span className={styles.colaItemMeta}>{fmtClock(e.dur)}</span>
+                      <div className={styles.colaActions}>{editBtn('entry', e)}</div>
+                    </li>
+                  ))}
+                </ProjGroup>
               ))}
-              {g.loose.map(e => (
-                <li key={`e${e.id}`} className={styles.colaItem}>
-                  <span className={styles.colaItemText}>{e.desc}</span>
-                  <span className={styles.colaItemMeta}>{fmtClock(e.dur)}</span>
-                  <div className={styles.colaActions}>{editBtn('entry', e)}</div>
-                </li>
-              ))}
-            </ProjGroup>
+            </div>
           ))
         )}
       </div>
