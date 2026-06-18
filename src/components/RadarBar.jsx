@@ -25,7 +25,7 @@ function RadarItem({ task, project, signal, actions, active }) {
 }
 
 // radar transversal — ignora projeto, agrupa por tipo de urgência; só leitura + ação rápida
-export function RadarBar({ radar, projById, today, onComplete, onBringBack, onStartTimer, onRemoveFocus, timerActive, timerTaskId }) {
+export function RadarBar({ radar, projById, today, onComplete, onBringBack, onStartTimer, onStop, onRemoveFocus, timerActive, timerTaskId }) {
   if (radar.isEmpty) {
     return (
       <section className={`${styles.radar} ${styles.radarCalm}`} aria-label="Radar">
@@ -40,7 +40,11 @@ export function RadarBar({ radar, projById, today, onComplete, onBringBack, onSt
       <i className="ti ti-check" aria-hidden="true" />
     </button>
   )
-  const startBtn = t => (
+  const startBtn = t => (timerActive && timerTaskId === t.id) ? (
+    <button className={styles.radarAction} onClick={() => onStop()} aria-label="Parar timer" title="Parar timer (não conclui a tarefa)">
+      <i className="ti ti-player-stop" aria-hidden="true" />
+    </button>
+  ) : (
     <button className={styles.radarAction} onClick={() => onStartTimer(t)} disabled={timerActive} aria-label="Iniciar timer" title={timerActive ? 'Timer em andamento' : 'Iniciar timer'}>
       <i className="ti ti-player-play" aria-hidden="true" />
     </button>

@@ -250,7 +250,7 @@ export default function App() {
   const taskActions = {
     setPriority, toggleBlocking, toAberta, toAguardando, toConcluida: completeTask, reopen,
     setWaitingPerson, setDeadline, toggleFocus, setProject: setTaskProject, setCategory: setTaskCategory,
-    startTimer: startTimerFromTask, remove: removeTask, commitTitle, logTime: logTaskTime, edit: setTaskEdit,
+    startTimer: startTimerFromTask, stopTimer, remove: removeTask, commitTitle, logTime: logTaskTime, edit: setTaskEdit,
   }
 
   // ── Projects CRUD ──
@@ -563,7 +563,7 @@ export default function App() {
         />
 
         <RadarBar radar={radar} projById={projById} today={today} timerActive={timerActive} timerTaskId={timerTaskId}
-          onComplete={t => completeTask(t.id)} onBringBack={t => toAberta(t.id)} onStartTimer={startTimerFromTask} onRemoveFocus={t => toggleFocus(t.id)} />
+          onComplete={t => completeTask(t.id)} onBringBack={t => toAberta(t.id)} onStartTimer={startTimerFromTask} onStop={stopTimer} onRemoveFocus={t => toggleFocus(t.id)} />
 
         {/* ── Visão por projeto ── */}
         <section className={styles.projectsZone}>
@@ -652,9 +652,9 @@ export default function App() {
         {/* ── Zona inferior: cola + gerenciadores | entradas ── */}
         <div className={styles.lower}>
           <div className={styles.lowerLeft}>
-            <ColaDaily cola={cola} projects={projects} today={today} timerActive={timerActive}
+            <ColaDaily cola={cola} projects={projects} today={today} timerActive={timerActive} timerTaskId={timerTaskId}
               selectedDay={colaDay} onSelectDay={setColaDay} onEditItem={openColaEdit}
-              onStartTimer={startTimerFromTask} onComplete={completeTask} />
+              onStartTimer={startTimerFromTask} onStop={stopTimer} onComplete={completeTask} />
             <ProjectsManager projects={projects} open={projectsManagerOpen} onToggle={() => setProjectsManagerOpen(o => !o)}
               onAdd={addProject} onRename={renameProject} onRecolor={recolorProject} onDelete={deleteProject} onToggleHidden={toggleHiddenProject} />
             <CategoriesManager categories={categories} open={categoriesManagerOpen} onToggle={() => setCategoriesManagerOpen(o => !o)}

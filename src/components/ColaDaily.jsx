@@ -25,7 +25,7 @@ function ProjGroup({ project, children }) {
 }
 
 // cola do daily — três blocos derivados (fiz / vou fazer / aguardando), agrupados por projeto
-export function ColaDaily({ cola, projects, today, timerActive, selectedDay, onSelectDay, onEditItem, onStartTimer, onComplete }) {
+export function ColaDaily({ cola, projects, today, timerActive, timerTaskId, selectedDay, onSelectDay, onEditItem, onStartTimer, onStop, onComplete }) {
   const { lastDay, fizEntries, fizLoose, fizDone, vouFazer, bloqueios } = cola
   const lastDayTotal = fizEntries.reduce((s, e) => s + e.dur, 0)
   const canNext = lastDay < today
@@ -131,9 +131,15 @@ export function ColaDaily({ cola, projects, today, timerActive, selectedDay, onS
                   <span className={styles.colaItemText}>{t.title}</span>
                   <div className={styles.colaActions}>
                     {editBtn('task', t)}
-                    <button className={styles.iconAction} onClick={() => onStartTimer(t)} disabled={timerActive} aria-label="Iniciar timer" title={timerActive ? 'Timer em andamento' : 'Iniciar timer'}>
-                      <i className="ti ti-player-play" aria-hidden="true" />
-                    </button>
+                    {timerActive && timerTaskId === t.id ? (
+                      <button className={`${styles.iconAction} ${styles.iconActionStop}`} onClick={() => onStop()} aria-label="Parar timer" title="Parar timer (não conclui a tarefa)">
+                        <i className="ti ti-player-stop" aria-hidden="true" />
+                      </button>
+                    ) : (
+                      <button className={styles.iconAction} onClick={() => onStartTimer(t)} disabled={timerActive} aria-label="Iniciar timer" title={timerActive ? 'Timer em andamento' : 'Iniciar timer'}>
+                        <i className="ti ti-player-play" aria-hidden="true" />
+                      </button>
+                    )}
                     <button className={styles.iconAction} onClick={() => onComplete(t.id)} aria-label="Concluir" title="Concluir">
                       <i className="ti ti-check" aria-hidden="true" />
                     </button>

@@ -51,7 +51,11 @@ function TaskRow({ task, categories, projects, today, timerActive, secsByTask, t
           <button className={`${styles.iconAction} ${task.blocking ? styles.iconActionBlocking : ''}`} onClick={() => a.toggleBlocking(task.id)} aria-pressed={task.blocking} aria-label={task.blocking ? 'Remover bloqueante' : 'Marcar bloqueante'} title={task.blocking ? 'Bloqueante' : 'Marcar como bloqueante'}>
             <i className="ti ti-alert-octagon" aria-hidden="true" />
           </button>
-          {task.status !== 'concluida' && (
+          {running ? (
+            <button className={`${styles.iconAction} ${styles.iconActionStop}`} onClick={() => a.stopTimer()} aria-label="Parar timer" title="Parar timer (não conclui a tarefa)">
+              <i className="ti ti-player-stop" aria-hidden="true" />
+            </button>
+          ) : task.status !== 'concluida' && (
             <button className={styles.iconAction} onClick={() => a.startTimer(task)} disabled={timerActive} aria-label="Iniciar timer" title={timerActive ? 'Timer em andamento' : 'Iniciar timer'}>
               <i className="ti ti-player-play" aria-hidden="true" />
             </button>
