@@ -2936,15 +2936,15 @@
   height: 44px;
   gap: 9px;
   padding: 0 14px;
-  min-width: 150px;
-  max-width: 220px;
+  min-width: 0;
+  max-width: 170px;
   border-radius: var(--radius-md);
   font-size: var(--text-sm);
   color: var(--text-primary);
 }
 .chipPickLg .chipDot { width: 9px; height: 9px; }
 .chipPickLg .chipIcon { font-size: 16px; }
-.chipPickLg .chipLabel { flex: 1; max-width: none; text-align: left; }
+.chipPickLg .chipLabel { text-align: left; }
 .chipPickLg .chipChevron { font-size: 16px; transition: transform var(--transition-normal) var(--ease-out); }
 .chipPickLg[aria-expanded='true'] { border-color: var(--primary); }
 .chipPickLg[aria-expanded='true'] .chipChevron { transform: rotate(180deg); }
