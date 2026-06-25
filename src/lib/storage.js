@@ -35,6 +35,16 @@ export const PRIORITY_DEFAULT = 3
 
 export const STATUS_LABELS = { aberta: 'Aberta', aguardando: 'Aguardando', concluida: 'Concluída' }
 
+// Classificação da entrada: trabalho de projeto vs. tarefa pessoal. Toda entrada tem uma (default = projeto).
+// id/name/color no mesmo shape de projeto/categoria → reaproveita o ChipPicker direto.
+export const ENTRY_KINDS = [
+  { id: 'projeto', name: 'Tarefa de Projeto', color: '#5B8DEF' },
+  { id: 'minhas', name: 'Minhas tarefas', color: '#E0A03B' },
+]
+export const ENTRY_KIND_DEFAULT = 'projeto'
+export const ENTRY_KIND_LABELS = { projeto: 'Tarefa de Projeto', minhas: 'Minhas tarefas' }
+export const entryKindColor = id => ENTRY_KINDS.find(k => k.id === id)?.color ?? FALLBACK_COLOR
+
 // id de projeto pode ser 'geral' (string) ou numérico — selects nativos NUNCA podem parseInt cegamente
 export const parseProjectId = v => (v === GERAL_ID ? GERAL_ID : Number(v))
 // categoria é sempre numérica; '' representa "Sem categoria" (null)

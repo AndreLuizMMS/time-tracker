@@ -6,6 +6,7 @@ import {
 } from './lib/format'
 import {
   KEYS, GERAL_ID, GERAL, FALLBACK_COLOR, PRIORITY_DEFAULT, SCHEMA_VERSION,
+  ENTRY_KINDS, ENTRY_KIND_DEFAULT,
   loadStorage, saveStorage, parseProjectId,
 } from './lib/storage'
 import { bootstrapState, importData } from './lib/migrate'
@@ -77,10 +78,12 @@ export default function App() {
   const [timerCategory, setTimerCategory] = useState(savedTimer?.active ? (savedTimer.categoryId ?? null) : (prefs0?.categoryId ?? boot.categories[0]?.id ?? null))
   const [timerResumeId, setTimerResumeId] = useState(savedTimer?.active ? (savedTimer.resumeId ?? null) : null)
   const [timerTaskId, setTimerTaskId] = useState(savedTimer?.active ? (savedTimer.taskId ?? null) : null)
+  // classificação default sempre "Tarefa de Projeto" — o usuário troca na barra quando for tarefa pessoal
+  const [timerKind, setTimerKind] = useState(savedTimer?.active ? (savedTimer.kind ?? ENTRY_KIND_DEFAULT) : ENTRY_KIND_DEFAULT)
   const tickRef = useRef(null)
 
   const persistTimer = patch => saveStorage(KEYS.timer, {
-    active: true, start: timerStart, desc: timerDesc, projectId: timerProject, categoryId: timerCategory, resumeId: timerResumeId, taskId: timerTaskId, ...patch,
+    active: true, start: timerStart, desc: timerDesc, projectId: timerProject, categoryId: timerCategory, kind: timerKind, resumeId: timerResumeId, taskId: timerTaskId, ...patch,
   })
 
   useEffect(() => {
@@ -98,7 +101,7 @@ export default function App() {
   const startTimer = () => {
     const s = Date.now()
     setTimerStart(s); setTimerActive(true); setTimerElapsed(0); setTimerTaskId(null)
-    saveStorage(KEYS.timer, { active: true, start: s, desc: timerDesc, projectId: timerProject, categoryId: timerCategory, resumeId: null, taskId: null })
+    saveStorage(KEYS.timer, { active: true, start: s, desc: timerDesc, projectId: timerProject, categoryId: timerCategory, kind: timerKind, resumeId: null, taskId: null })
   }
 
   const stopTimer = () => {
@@ -114,23 +117,23 @@ export default function App() {
       setEntries(prev => prev.map(x => {
         if (x.id !== timerResumeId) return x
         const end = secsToTime((timeToSecs(x.start) + timerElapsed) % 86400)
-        return { ...x, desc: timerDesc || 'Sem descrição', projectId: timerProject, categoryId: timerCategory, end, dur: timerElapsed }
+        return { ...x, desc: timerDesc || 'Sem descrição', projectId: timerProject, categoryId: timerCategory, kind: timerKind, end, dur: timerElapsed }
       }))
     } else {
       const entry = {
         id: Date.now(), date: dateStr, desc: timerDesc || 'Sem descrição',
-        projectId: timerProject, categoryId: timerCategory, taskId: timerTaskId,
+        projectId: timerProject, categoryId: timerCategory, kind: timerKind, taskId: timerTaskId,
         start: secsToTime(startSecs), end: secsToTime(endSecs), dur: timerElapsed,
       }
       setEntries(e => [entry, ...e])
     }
     rememberCapture(timerProject, timerCategory)
-    setTimerActive(false); setTimerElapsed(0); setTimerDesc(''); setTimerResumeId(null); setTimerTaskId(null)
+    setTimerActive(false); setTimerElapsed(0); setTimerDesc(''); setTimerResumeId(null); setTimerTaskId(null); setTimerKind(ENTRY_KIND_DEFAULT)
     saveStorage(KEYS.timer, { active: false })
   }
 
   const discardTimer = () => {
-    setTimerActive(false); setTimerElapsed(0); setTimerResumeId(null); setTimerTaskId(null)
+    setTimerActive(false); setTimerElapsed(0); setTimerResumeId(null); setTimerTaskId(null); setTimerKind(ENTRY_KIND_DEFAULT)
     saveStorage(KEYS.timer, { active: false })
     showNotice('Timer descartado')
   }
@@ -139,9 +142,9 @@ export default function App() {
     if (timerActive) { showNotice('Pare o timer atual primeiro'); return }
     const s = Date.now() - entry.dur * 1000
     setTimerDesc(entry.desc === 'Sem descrição' ? '' : entry.desc)
-    setTimerProject(entry.projectId); setTimerCategory(entry.categoryId); setTimerResumeId(entry.id); setTimerTaskId(entry.taskId ?? null)
+    setTimerProject(entry.projectId); setTimerCategory(entry.categoryId); setTimerResumeId(entry.id); setTimerTaskId(entry.taskId ?? null); setTimerKind(entry.kind ?? ENTRY_KIND_DEFAULT)
     setTimerStart(s); setTimerElapsed(entry.dur); setTimerActive(true)
-    saveStorage(KEYS.timer, { active: true, start: s, desc: entry.desc, projectId: entry.projectId, categoryId: entry.categoryId, resumeId: entry.id, taskId: entry.taskId ?? null })
+    saveStorage(KEYS.timer, { active: true, start: s, desc: entry.desc, projectId: entry.projectId, categoryId: entry.categoryId, kind: entry.kind ?? ENTRY_KIND_DEFAULT, resumeId: entry.id, taskId: entry.taskId ?? null })
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -149,9 +152,9 @@ export default function App() {
     if (timerActive) { showNotice('Pare o timer atual primeiro'); return }
     const s = Date.now()
     const cat = task.categoryId ?? lastCategoryId
-    setTimerDesc(task.title); setTimerProject(task.projectId); setTimerCategory(cat)
+    setTimerDesc(task.title); setTimerProject(task.projectId); setTimerCategory(cat); setTimerKind(ENTRY_KIND_DEFAULT)
     setTimerStart(s); setTimerActive(true); setTimerElapsed(0); setTimerResumeId(null); setTimerTaskId(task.id)
-    saveStorage(KEYS.timer, { active: true, start: s, desc: task.title, projectId: task.projectId, categoryId: cat, resumeId: null, taskId: task.id })
+    saveStorage(KEYS.timer, { active: true, start: s, desc: task.title, projectId: task.projectId, categoryId: cat, kind: ENTRY_KIND_DEFAULT, resumeId: null, taskId: task.id })
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -211,7 +214,7 @@ export default function App() {
     const startSecs = Math.max(0, endSecs - secs)
     const entry = {
       id: Date.now(), date: localDateStr(now), desc: task.title,
-      projectId: task.projectId, categoryId: task.categoryId, taskId: task.id,
+      projectId: task.projectId, categoryId: task.categoryId, kind: ENTRY_KIND_DEFAULT, taskId: task.id,
       start: secsToTime(startSecs), end: secsToTime(endSecs % 86400), dur: secs,
     }
     setEntries(prev => {
@@ -386,13 +389,15 @@ export default function App() {
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [filterProject, setFilterProject] = useState('all')
   const [filterCategory, setFilterCategory] = useState('all') // 'all' | number | null (Sem categoria)
+  const [filterKind, setFilterKind] = useState('all') // 'all' | 'projeto' | 'minhas'
   const [filterFrom, setFilterFrom] = useState('')
   const [filterTo, setFilterTo] = useState('')
   const searchRef = useRef(null)
-  const clearFilters = () => { setFilterProject('all'); setFilterCategory('all'); setFilterFrom(''); setFilterTo('') }
-  const hasFilters = filterProject !== 'all' || filterCategory !== 'all' || filterFrom || filterTo
+  const clearFilters = () => { setFilterProject('all'); setFilterCategory('all'); setFilterKind('all'); setFilterFrom(''); setFilterTo('') }
+  const hasFilters = filterProject !== 'all' || filterCategory !== 'all' || filterKind !== 'all' || filterFrom || filterTo
   // clica na barra do breakdown → filtra por aquela categoria (toggle)
   const toggleCategoryFilter = id => setFilterCategory(prev => (prev === id ? 'all' : id))
+  const toggleKindFilter = id => setFilterKind(prev => (prev === id ? 'all' : id))
   const presets = useMemo(() => {
     const now = new Date(); const t = localDateStr(now); const ws = addDays(now, -now.getDay())
     return [
@@ -502,18 +507,29 @@ export default function App() {
     if (filterTo && e.date > filterTo) return false
     return true
   })
-  const filteredEntries = filterCategory === 'all' ? baseFiltered : baseFiltered.filter(e => e.categoryId === filterCategory)
+  // classificação e categoria são eixos independentes: cada breakdown ignora o próprio filtro
+  // (mantém todas as barras clicáveis) mas respeita o do outro eixo. a lista respeita ambos.
+  const afterKind = filterKind === 'all' ? baseFiltered : baseFiltered.filter(e => e.kind === filterKind)
+  const afterCat = filterCategory === 'all' ? baseFiltered : baseFiltered.filter(e => e.categoryId === filterCategory)
+  const filteredEntries = filterCategory === 'all' ? afterKind : afterKind.filter(e => e.categoryId === filterCategory)
   const grouped = filteredEntries.reduce((acc, e) => { (acc[e.date] = acc[e.date] || []).push(e); return acc }, {})
   const sortedDays = Object.keys(grouped).sort((a, b) => b.localeCompare(a))
   const catTotals = useMemo(() => {
     const map = new Map()
-    baseFiltered.forEach(e => map.set(e.categoryId, (map.get(e.categoryId) || 0) + e.dur))
+    afterKind.forEach(e => map.set(e.categoryId, (map.get(e.categoryId) || 0) + e.dur))
     const arr = [...map.entries()].map(([id, dur]) => ({ id, dur, name: catName(id), color: catById(id)?.color ?? FALLBACK_COLOR }))
     arr.sort((a, b) => b.dur - a.dur)
     return arr
-  }, [baseFiltered]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [afterKind]) // eslint-disable-line react-hooks/exhaustive-deps
   const breakdownMax = catTotals[0]?.dur || 1
   const breakdownTotal = catTotals.reduce((s, p) => s + p.dur, 0)
+  const kindTotals = useMemo(() => {
+    const map = new Map()
+    afterCat.forEach(e => map.set(e.kind, (map.get(e.kind) || 0) + e.dur))
+    return ENTRY_KINDS.filter(k => map.has(k.id)).map(k => ({ id: k.id, name: k.name, color: k.color, dur: map.get(k.id) }))
+  }, [afterCat]) // eslint-disable-line react-hooks/exhaustive-deps
+  const kindMax = Math.max(1, ...kindTotals.map(k => k.dur))
+  const kindTotal = kindTotals.reduce((s, k) => s + k.dur, 0)
 
   return (
     <div className={styles.layout}>
@@ -554,11 +570,12 @@ export default function App() {
       <main className={styles.main}>
         <TimerBar
           active={timerActive} elapsed={timerElapsed} desc={timerDesc}
-          projectId={timerProject} categoryId={timerCategory} projects={projects} categories={categories}
+          projectId={timerProject} categoryId={timerCategory} kindId={timerKind} projects={projects} categories={categories}
           startStr={timerStartStr}
           onDescChange={v => { setTimerDesc(v); if (timerActive) persistTimer({ desc: v }) }}
           onProjectChange={v => { setTimerProject(v); if (timerActive) persistTimer({ projectId: v }) }}
           onCategoryChange={v => { setTimerCategory(v); if (timerActive) persistTimer({ categoryId: v }) }}
+          onKindChange={v => { setTimerKind(v); if (timerActive) persistTimer({ kind: v }) }}
           onStart={startTimer} onStop={stopTimer} onDiscard={discardTimer} onStartTimeChange={setTimerStartTime}
         />
 
@@ -719,6 +736,13 @@ export default function App() {
                         </select>
                         <i className={`ti ti-chevron-down ${styles.selectIcon}`} aria-hidden="true" />
                       </div>
+                      <div className={styles.selectWrap}>
+                        <select className={styles.formSelect} value={filterKind} onChange={e => setFilterKind(e.target.value)} aria-label="Filtrar por classificação">
+                          <option value="all">Toda classificação</option>
+                          {ENTRY_KINDS.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
+                        </select>
+                        <i className={`ti ti-chevron-down ${styles.selectIcon}`} aria-hidden="true" />
+                      </div>
                       <input type="date" className={styles.dateInput} value={filterFrom} max={filterTo || undefined} onChange={e => setFilterFrom(e.target.value)} aria-label="Data inicial" />
                       <span className={styles.filterSep}>até</span>
                       <input type="date" className={styles.dateInput} value={filterTo} min={filterFrom || undefined} onChange={e => setFilterTo(e.target.value)} aria-label="Data final" />
@@ -731,6 +755,24 @@ export default function App() {
                   <div className={styles.noResults}><i className="ti ti-search-off" aria-hidden="true" />Nenhum resultado{q ? ` para “${searchQuery}”` : ''}</div>
                 ) : (
                   <>
+                    {kindTotals.length > 1 && (
+                      <div className={styles.breakdown}>
+                        <div className={styles.breakdownHead}><span className={styles.breakdownTitle}>Por classificação</span><span className={styles.breakdownSum}>{fmtClock(kindTotal)}</span></div>
+                        {kindTotals.map(k => (
+                          <button
+                            key={k.id}
+                            type="button"
+                            className={`${styles.breakdownRow} ${filterKind === k.id ? styles.breakdownRowActive : ''} ${filterKind !== 'all' && filterKind !== k.id ? styles.breakdownRowDim : ''}`}
+                            onClick={() => toggleKindFilter(k.id)}
+                            title={filterKind === k.id ? 'Remover filtro' : `Ver ${k.name}`}
+                          >
+                            <span className={styles.breakdownName}><span className={styles.breakdownDot} style={{ background: k.color }} aria-hidden="true" />{k.name}</span>
+                            <div className={styles.breakdownTrack}><div className={styles.breakdownBar} style={{ width: `${(k.dur / kindMax) * 100}%`, background: k.color }} /></div>
+                            <span className={styles.breakdownVal}>{fmtClock(k.dur)}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     {catTotals.length > 1 && (
                       <div className={styles.breakdown}>
                         <div className={styles.breakdownHead}><span className={styles.breakdownTitle}>Por categoria</span><span className={styles.breakdownSum}>{fmtClock(breakdownTotal)}</span></div>

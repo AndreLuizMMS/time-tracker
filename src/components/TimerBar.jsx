@@ -1,11 +1,12 @@
 import styles from '../App.module.css'
 import { fmtDur } from '../lib/format'
+import { ENTRY_KINDS } from '../lib/storage'
 import { TimeField, ChipPicker } from './pickers'
 
 // barra de captura persistente — o tempo é o herói; projeto + categoria já vêm dos últimos usados
 export function TimerBar({
-  active, elapsed, desc, projectId, categoryId, projects, categories, startStr,
-  onDescChange, onProjectChange, onCategoryChange, onStart, onStop, onDiscard, onStartTimeChange,
+  active, elapsed, desc, projectId, categoryId, kindId, projects, categories, startStr,
+  onDescChange, onProjectChange, onCategoryChange, onKindChange, onStart, onStop, onDiscard, onStartTimeChange,
 }) {
   return (
     <section className={`${styles.timerBand} ${active ? styles.timerBandActive : ''}`}>
@@ -18,6 +19,7 @@ export function TimerBar({
         />
         <ChipPicker large value={projectId} options={projects} onChange={onProjectChange} icon="ti-folder" title="Projeto" />
         <ChipPicker large value={categoryId} options={categories} onChange={onCategoryChange} allowNone noneLabel="Sem categoria" icon="ti-tag" title="Categoria" />
+        <ChipPicker large value={kindId} options={ENTRY_KINDS} onChange={onKindChange} icon="ti-layout-grid" title="Classificação" />
       </div>
 
       {active && (

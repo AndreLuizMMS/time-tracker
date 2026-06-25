@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import styles from '../App.module.css'
 import { fmtClock, timeToSecs, secsToTime, todayStr } from '../lib/format'
-import { GERAL_ID, parseProjectId, parseCategoryId, PRIORITY_LABELS, STATUS_LABELS } from '../lib/storage'
+import { GERAL_ID, parseProjectId, parseCategoryId, PRIORITY_LABELS, STATUS_LABELS, ENTRY_KINDS, ENTRY_KIND_DEFAULT, ENTRY_KIND_LABELS, entryKindColor } from '../lib/storage'
 import { ColorSwatch, TimeField, DateField, useDismiss } from './pickers'
 
 // ─── Entry row (entrada de tempo) ─────────────────────────────────────────────
@@ -41,6 +41,9 @@ export function EntryRow({ entry, project, category, editing, onEdit, onDelete, 
           {project.name}
         </span>
         {category && <span className={styles.entryCat}>{category.name}</span>}
+        <span className={styles.entryKind} style={{ '--kind-c': entryKindColor(entry.kind) }}>
+          <span className={styles.entryKindDot} aria-hidden="true" />{ENTRY_KIND_LABELS[entry.kind] ?? ENTRY_KIND_LABELS[ENTRY_KIND_DEFAULT]}
+        </span>
         <span className={styles.entryRange}>{entry.start} – {entry.end}</span>
         <span className={styles.entryDur}>{fmtClock(entry.dur)}</span>
       </div>
@@ -87,6 +90,7 @@ export function ManualEntryForm({ editing, projects, categories, defaultProjectI
   const [desc, setDesc] = useState(init.desc && init.desc !== 'Sem descrição' ? init.desc : '')
   const [projectId, setProjectId] = useState(init.projectId ?? defaultProjectId ?? GERAL_ID)
   const [categoryId, setCategoryId] = useState(init.categoryId ?? defaultCategoryId ?? categories[0]?.id ?? null)
+  const [kind, setKind] = useState(init.kind ?? ENTRY_KIND_DEFAULT)
   const [err, setErr] = useState('')
   const endRef = useRef(null)
 
@@ -108,7 +112,7 @@ export function ManualEntryForm({ editing, projects, categories, defaultProjectI
     onSave({
       id: editing?.id,
       date, desc: desc || 'Sem descrição',
-      projectId, categoryId,
+      projectId, categoryId, kind,
       start, end, dur: eSec - sSec,
     })
   }
@@ -136,6 +140,15 @@ export function ManualEntryForm({ editing, projects, categories, defaultProjectI
             <select className={styles.formSelect} value={categoryId ?? ''} onChange={e => setCategoryId(parseCategoryId(e.target.value))}>
               {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               <option value="">Sem categoria</option>
+            </select>
+            <i className={`ti ti-chevron-down ${styles.selectIcon}`} aria-hidden="true" />
+          </div>
+        </div>
+        <div className={styles.formGroup}>
+          <label className={styles.formLabel}>Classificação</label>
+          <div className={styles.selectWrap}>
+            <select className={styles.formSelect} value={kind} onChange={e => setKind(e.target.value)}>
+              {ENTRY_KINDS.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
             </select>
             <i className={`ti ti-chevron-down ${styles.selectIcon}`} aria-hidden="true" />
           </div>

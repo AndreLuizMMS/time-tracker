@@ -2443,6 +2443,28 @@
   flex-shrink: 0;
 }
 
+/* classificação da entrada (Tarefa de Projeto / Minhas tarefas) — pílula na cor da classificação */
+.entryKind {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+  border: 1px solid color-mix(in srgb, var(--kind-c, var(--border)) 40%, transparent);
+  background: color-mix(in srgb, var(--kind-c, var(--border)) 12%, transparent);
+}
+
+.entryKindDot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--kind-c, var(--text-tertiary));
+  flex-shrink: 0;
+}
+
 /* ─── Radar transversal ──────────────────────────────── */
 .radar {
   display: flex;

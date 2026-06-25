@@ -5,7 +5,7 @@
 
 import {
   KEYS, SCHEMA_VERSION, GERAL, GERAL_ID, SEED_PROJECTS,
-  DEFAULT_CATEGORIES, PRIORITY_DEFAULT, loadStorage, saveStorage,
+  DEFAULT_CATEGORIES, PRIORITY_DEFAULT, ENTRY_KIND_DEFAULT, loadStorage, saveStorage,
 } from './storage'
 
 // normaliza uma entrada garantindo os campos v2 (proj → categoryId, ganha projectId)
@@ -19,6 +19,7 @@ export function normEntry(e) {
     dur: e.dur,
     projectId: e.projectId ?? GERAL_ID,
     categoryId: e.categoryId ?? e.proj ?? null,
+    kind: e.kind ?? ENTRY_KIND_DEFAULT,
     taskId: e.taskId ?? null,
   }
 }
