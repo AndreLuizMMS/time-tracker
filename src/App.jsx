@@ -291,13 +291,8 @@ export default function App() {
   const [editingEntry, setEditingEntry] = useState(null)
   const [projectsManagerOpen, setProjectsManagerOpen] = useState(false)
   const [categoriesManagerOpen, setCategoriesManagerOpen] = useState(false)
-  const manualRef = useRef(null)
   const startEdit = entry => { setEditingEntry(entry); setShowManual(true) }
   const closeManual = () => { setShowManual(false); setEditingEntry(null) }
-  // ao editar, traz o formulário pro campo de visão suavemente (sem pular pro topo absoluto)
-  useEffect(() => {
-    if (showManual && editingEntry) manualRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  }, [showManual, editingEntry])
   const saveManual = data => {
     setEntries(prev => {
       const next = data.id != null
@@ -685,10 +680,8 @@ export default function App() {
             </button>
 
             {showManual && (
-              <div ref={manualRef}>
-                <ManualEntryForm key={editingEntry?.id ?? 'new'} editing={editingEntry} projects={projects} categories={categories}
-                  defaultProjectId={lastProjectId} defaultCategoryId={lastCategoryId} entries={entries} onSave={saveManual} onCancel={closeManual} />
-              </div>
+              <ManualEntryForm key={editingEntry?.id ?? 'new'} editing={editingEntry} projects={projects} categories={categories}
+                defaultProjectId={lastProjectId} defaultCategoryId={lastCategoryId} entries={entries} onSave={saveManual} onCancel={closeManual} />
             )}
 
             {entries.length === 0 ? (

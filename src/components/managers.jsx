@@ -118,8 +118,12 @@ export function ManualEntryForm({ editing, projects, categories, defaultProjectI
   }
 
   return (
-    <form className={styles.card} onSubmit={submit}>
-      <div className={styles.sectionLabel} style={{ marginTop: 0 }}>{editing ? 'Editar entrada' : 'Nova entrada'}</div>
+    <div className={styles.helpOverlay} role="dialog" aria-modal="true" aria-label={editing ? 'Editar entrada' : 'Nova entrada'} onClick={onCancel}>
+    <form className={styles.helpModal} style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()} onSubmit={submit}>
+      <div className={styles.helpHead}>
+        <span className={styles.helpTitle}><i className="ti ti-clock-plus" aria-hidden="true" />{editing ? 'Editar entrada' : 'Nova entrada'}</span>
+        <button type="button" className={styles.iconBtn} onClick={onCancel} aria-label="Fechar"><i className="ti ti-x" aria-hidden="true" /></button>
+      </div>
       <div className={styles.manualGrid}>
         <div className={styles.formGroup}>
           <label className={styles.formLabel}>Data</label>
@@ -180,6 +184,7 @@ export function ManualEntryForm({ editing, projects, categories, defaultProjectI
         <button type="submit" className={styles.btnPrimary}>{editing ? 'Salvar' : 'Adicionar'}</button>
       </div>
     </form>
+    </div>
   )
 }
 
