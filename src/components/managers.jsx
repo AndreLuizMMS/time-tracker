@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import styles from '../App.module.css'
 import { fmtClock, timeToSecs, secsToTime, todayStr } from '../lib/format'
 import { GERAL_ID, parseProjectId, parseCategoryId, PRIORITY_LABELS, STATUS_LABELS, ENTRY_KINDS, ENTRY_KIND_DEFAULT, ENTRY_KIND_LABELS, entryKindColor } from '../lib/storage'
@@ -117,7 +118,7 @@ export function ManualEntryForm({ editing, projects, categories, defaultProjectI
     })
   }
 
-  return (
+  return createPortal(
     <div className={styles.helpOverlay} role="dialog" aria-modal="true" aria-label={editing ? 'Editar entrada' : 'Nova entrada'} onClick={onCancel}>
     <form className={styles.helpModal} style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()} onSubmit={submit}>
       <div className={styles.helpHead}>
@@ -184,7 +185,8 @@ export function ManualEntryForm({ editing, projects, categories, defaultProjectI
         <button type="submit" className={styles.btnPrimary}>{editing ? 'Salvar' : 'Adicionar'}</button>
       </div>
     </form>
-    </div>
+    </div>,
+    document.body
   )
 }
 
@@ -197,7 +199,7 @@ export function ColaEditDialog({ item, onSave, onCancel }) {
     if (item.kind === 'task' && !title.trim()) return
     onSave({ title, date: item.hasDate ? date : null })
   }
-  return (
+  return createPortal(
     <div className={styles.helpOverlay} role="dialog" aria-modal="true" aria-label="Editar item" onClick={onCancel}>
       <form className={styles.helpModal} onClick={e => e.stopPropagation()} onSubmit={submit}>
         <div className={styles.helpHead}>
@@ -219,7 +221,8 @@ export function ColaEditDialog({ item, onSave, onCancel }) {
           <button type="submit" className={styles.btnPrimary}>Salvar</button>
         </div>
       </form>
-    </div>
+    </div>,
+    document.body
   )
 }
 
@@ -239,7 +242,7 @@ export function TaskEditDialog({ task, categories, projects, today, onSave, onCa
     if (!title.trim()) return
     onSave({ title, projectId, categoryId, priority, status, deadline, blocking, focus, waitingPerson: waitingPerson.trim() || null })
   }
-  return (
+  return createPortal(
     <div className={styles.helpOverlay} role="dialog" aria-modal="true" aria-label="Editar tarefa" onClick={onCancel}>
       <form className={styles.helpModal} onClick={e => e.stopPropagation()} onSubmit={submit} style={{ maxWidth: 460 }}>
         <div className={styles.helpHead}>
@@ -319,7 +322,8 @@ export function TaskEditDialog({ task, categories, projects, today, onSave, onCa
           <button type="submit" className={styles.btnPrimary}>Salvar</button>
         </div>
       </form>
-    </div>
+    </div>,
+    document.body
   )
 }
 

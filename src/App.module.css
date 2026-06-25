@@ -1035,6 +1035,9 @@
   gap: 10px;
   align-items: center;
   justify-content: flex-end;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
 }
 
 .formErr {
@@ -2328,34 +2331,56 @@
 
 .noticeToast i { font-size: 16px; color: var(--info); }
 
-/* ─── Help / atalhos (modal) ─────────────────────────── */
+/* ─── Dialog system (custom) — help, entrada manual, edição ─────────── */
 .helpOverlay {
   position: fixed;
   inset: 0;
-  z-index: 80;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(2px);
-  animation: cardIn var(--transition-fast) var(--ease-out);
+  z-index: 90;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: clamp(24px, 8vh, 96px) 20px 48px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: color-mix(in srgb, var(--neutral-950) 52%, transparent);
+  backdrop-filter: blur(4px) saturate(120%);
+  animation: dlgFade var(--transition-fast) var(--ease-out);
 }
+@keyframes dlgFade { from { opacity: 0; } to { opacity: 1; } }
+
 .helpModal {
+  position: relative;
   width: 100%;
   max-width: 380px;
+  margin: auto 0;
   background: var(--surface);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   box-shadow: var(--shadow-lg);
-  padding: 18px;
-  animation: popIn var(--transition-normal) var(--ease-out);
+  padding: 22px;
+  animation: dlgPop var(--transition-normal) var(--ease-out);
 }
+/* faixa de destaque no topo do diálogo */
+.helpModal::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 22px; right: 22px;
+  height: 2px;
+  border-radius: 0 0 2px 2px;
+  background: linear-gradient(90deg, var(--primary), transparent 70%);
+}
+@keyframes dlgPop {
+  from { opacity: 0; transform: scale(0.97) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
 .helpHead {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
-  margin-bottom: 14px;
+  margin: 0 0 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
 }
 .taskEditCheck {
   display: inline-flex;
@@ -2369,13 +2394,29 @@
 .helpTitle {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 11px;
+  flex: 1;
+  min-width: 0;
   font-family: var(--font-display);
   font-size: var(--text-md);
   font-weight: 600;
+  letter-spacing: -0.01em;
   color: var(--text-primary);
 }
-.helpTitle i { color: var(--primary); font-size: 18px; }
+/* ícone do título vira um chip tonal */
+.helpTitle i {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  color: var(--primary);
+  font-size: 19px;
+}
+/* botão fechar do diálogo (alinha à direita no head) */
+.helpHead > .iconBtn { margin-left: auto; }
 .helpList { list-style: none; display: flex; flex-direction: column; gap: 4px; }
 .helpRow {
   display: flex;
