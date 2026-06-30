@@ -39,7 +39,12 @@ function useAnchoredPopover() {
       setOpen(false)
     }
     const onKey = e => { if (e.key === 'Escape') setOpen(false) }
-    const onScroll = () => setOpen(false)
+    // scroll dentro do próprio popover (ex.: lista de horas, opções) não deve fechá-lo —
+    // só fecha quando o scroll é de algo fora do trigger/popover (a página por trás se moveu)
+    const onScroll = e => {
+      if (triggerRef.current?.contains(e.target) || popRef.current?.contains(e.target)) return
+      setOpen(false)
+    }
     document.addEventListener('mousedown', onDoc)
     document.addEventListener('keydown', onKey)
     window.addEventListener('scroll', onScroll, true)
