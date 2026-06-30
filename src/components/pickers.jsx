@@ -57,7 +57,7 @@ function useAnchoredPopover() {
 function PortalPop({ popRef, pos, className, role, children }) {
   if (!pos) return null
   return createPortal(
-    <div ref={popRef} className={className} role={role} style={{ position: 'fixed', top: pos.top, left: pos.left ?? 'auto', right: pos.right ?? 'auto', zIndex: 60 }}>
+    <div ref={popRef} className={className} role={role} style={{ position: 'fixed', top: pos.top, left: pos.left ?? 'auto', right: pos.right ?? 'auto', zIndex: 100 }}>
       {children}
     </div>,
     document.body
