@@ -117,14 +117,11 @@ function CalPanel({ value, onPick }) {
   )
 }
 
-// ─── Time field (digitável + roletas) — no fluxo (manual/timer, sem clip) ─────
+// ─── Time field (digitável + roletas) — portalado ao body, escapa do diálogo ─
 export const TimeField = forwardRef(function TimeField({ value, onChange, onComplete }, inputRef) {
-  const [open, setOpen] = useState(false)
+  const { open, setOpen, pos, triggerRef, popRef } = useAnchoredPopover()
   const [draft, setDraft] = useState(value)
   const [focused, setFocused] = useState(false)
-  const ref = useRef(null)
-  const popRef = useRef(null)
-  useDismiss(open, setOpen, ref)
   // só sincroniza o draft com o value externo quando NÃO está focado — durante a edição
   // (timer ativo re-renderiza a cada 1s) o valor digitado não pode ser sobreposto
   useEffect(() => { if (!focused) setDraft(value) }, [value, focused])
@@ -162,14 +159,14 @@ export const TimeField = forwardRef(function TimeField({ value, onChange, onComp
     onChange(v); setDraft(v)
   }
   return (
-    <div className={styles.field} ref={ref}>
+    <div className={styles.field} ref={triggerRef}>
       <div className={`${styles.fieldTrigger} ${open ? styles.fieldTriggerOpen : ''}`}>
         <i className="ti ti-clock-hour-4" aria-hidden="true" />
         <input ref={inputRef} className={styles.timeTextInput} value={draft} onChange={handleType} onBlur={handleBlur} onFocus={e => { setFocused(true); e.target.select() }} inputMode="numeric" placeholder="--:--" maxLength={5} aria-label="Hora (HH:MM)" />
         <button type="button" className={styles.fieldChevronBtn} onClick={() => setOpen(o => !o)} aria-label="Escolher hora" aria-haspopup="dialog" aria-expanded={open}><i className={`ti ti-chevron-down ${styles.fieldChevron}`} aria-hidden="true" /></button>
       </div>
       {open && (
-        <div className={styles.timePopover} role="dialog" ref={popRef}>
+        <PortalPop popRef={popRef} pos={pos} className={styles.timePopover} role="dialog">
           <div className={styles.timeCol}>
             <div className={styles.timeColLabel}>Hora</div>
             <div className={styles.timeColScroll}>{hours.map(hh => <button type="button" key={hh} className={`${styles.timeOpt} ${hh === h ? styles.timeOptActive : ''}`} onClick={() => onChange(`${hh}:${m}`)}>{hh}</button>)}</div>
@@ -179,26 +176,28 @@ export const TimeField = forwardRef(function TimeField({ value, onChange, onComp
             <div className={styles.timeColLabel}>Min</div>
             <div className={styles.timeColScroll}>{mins.map(mm => <button type="button" key={mm} className={`${styles.timeOpt} ${mm === m ? styles.timeOptActive : ''}`} onClick={() => onChange(`${h}:${mm}`)}>{mm}</button>)}</div>
           </div>
-        </div>
+        </PortalPop>
       )}
     </div>
   )
 })
 
-// ─── Date field (no fluxo — manual/filtros) ──────────────────────────────────
+// ─── Date field (portalado ao body — escapa de diálogos/colunas estreitas) ───
 export function DateField({ value, onChange }) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef(null)
-  useDismiss(open, setOpen, ref)
+  const { open, setOpen, pos, triggerRef, popRef } = useAnchoredPopover()
   const label = new Date(value + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
   return (
-    <div className={styles.field} ref={ref}>
-      <button type="button" className={`${styles.fieldTrigger} ${open ? styles.fieldTriggerOpen : ''}`} onClick={() => setOpen(o => !o)} aria-haspopup="dialog" aria-expanded={open}>
+    <div className={styles.field}>
+      <button ref={triggerRef} type="button" className={`${styles.fieldTrigger} ${open ? styles.fieldTriggerOpen : ''}`} onClick={() => setOpen(o => !o)} aria-haspopup="dialog" aria-expanded={open}>
         <i className="ti ti-calendar-event" aria-hidden="true" />
         <span className={styles.fieldValue}>{label}</span>
         <i className={`ti ti-chevron-down ${styles.fieldChevron}`} aria-hidden="true" />
       </button>
-      {open && <CalPanel value={value} onPick={ds => { onChange(ds); setOpen(false) }} />}
+      {open && (
+        <PortalPop popRef={popRef} pos={pos} className={styles.deadlinePop} role="dialog">
+          <CalPanel value={value} onPick={ds => { onChange(ds); setOpen(false) }} />
+        </PortalPop>
+      )}
     </div>
   )
 }

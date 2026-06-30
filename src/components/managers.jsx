@@ -118,9 +118,11 @@ export function ManualEntryForm({ editing, projects, categories, defaultProjectI
     })
   }
 
+  const accent = projects.find(p => p.id === projectId)?.color
+
   return createPortal(
     <div className={styles.helpOverlay} role="dialog" aria-modal="true" aria-label={editing ? 'Editar entrada' : 'Nova entrada'} onClick={onCancel}>
-    <form className={styles.helpModal} style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()} onSubmit={submit}>
+    <form className={styles.helpModal} style={{ maxWidth: 480, '--accent-color': accent }} onClick={e => e.stopPropagation()} onSubmit={submit}>
       <div className={styles.helpHead}>
         <span className={styles.helpTitle}><i className="ti ti-clock-plus" aria-hidden="true" />{editing ? 'Editar entrada' : 'Nova entrada'}</span>
         <button type="button" className={styles.iconBtn} onClick={onCancel} aria-label="Fechar"><i className="ti ti-x" aria-hidden="true" /></button>
@@ -129,6 +131,15 @@ export function ManualEntryForm({ editing, projects, categories, defaultProjectI
         <div className={styles.formGroup}>
           <label className={styles.formLabel}>Data</label>
           <DateField value={date} onChange={setDate} />
+        </div>
+        <div className={styles.formGroup}>
+          <label className={styles.formLabel}>Classificação</label>
+          <div className={styles.selectWrap}>
+            <select className={styles.formSelect} value={kind} onChange={e => setKind(e.target.value)}>
+              {ENTRY_KINDS.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
+            </select>
+            <i className={`ti ti-chevron-down ${styles.selectIcon}`} aria-hidden="true" />
+          </div>
         </div>
         <div className={styles.formGroup}>
           <label className={styles.formLabel}>Projeto</label>
@@ -149,15 +160,8 @@ export function ManualEntryForm({ editing, projects, categories, defaultProjectI
             <i className={`ti ti-chevron-down ${styles.selectIcon}`} aria-hidden="true" />
           </div>
         </div>
-        <div className={styles.formGroup}>
-          <label className={styles.formLabel}>Classificação</label>
-          <div className={styles.selectWrap}>
-            <select className={styles.formSelect} value={kind} onChange={e => setKind(e.target.value)}>
-              {ENTRY_KINDS.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
-            </select>
-            <i className={`ti ti-chevron-down ${styles.selectIcon}`} aria-hidden="true" />
-          </div>
-        </div>
+      </div>
+      <div className={styles.manualGridTime}>
         <div className={styles.formGroup}>
           <label className={styles.formLabel}>Início</label>
           <TimeField value={start} onChange={setStart} />
@@ -175,12 +179,16 @@ export function ManualEntryForm({ editing, projects, categories, defaultProjectI
         <label className={styles.formLabel}>Descrição</label>
         <input className={styles.formInput} placeholder="O que você trabalhou?" value={desc} onChange={e => setDesc(e.target.value)} />
       </div>
+      {(err || overlap) && (
+        <div className={styles.manualFeedback}>
+          {err ? (
+            <span className={styles.formErr}><i className="ti ti-alert-circle" aria-hidden="true" />{err}</span>
+          ) : (
+            <span className={styles.formWarn}><i className="ti ti-alert-triangle" aria-hidden="true" />Sobrepõe outra entrada neste dia</span>
+          )}
+        </div>
+      )}
       <div className={styles.manualFooter}>
-        {err ? (
-          <span className={styles.formErr}><i className="ti ti-alert-circle" aria-hidden="true" />{err}</span>
-        ) : overlap ? (
-          <span className={styles.formWarn}><i className="ti ti-alert-triangle" aria-hidden="true" />Sobrepõe outra entrada neste dia</span>
-        ) : null}
         <button type="button" className={styles.btnSecondary} onClick={onCancel}>Cancelar</button>
         <button type="submit" className={styles.btnPrimary}>{editing ? 'Salvar' : 'Adicionar'}</button>
       </div>

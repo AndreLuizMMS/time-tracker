@@ -676,6 +676,16 @@
   margin-bottom: 12px;
 }
 
+/* linha de início/fim/duração — sempre 3 colunas iguais, nunca campo órfão */
+.manualGridTime {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.manualFeedback { margin-bottom: 12px; }
+
 .formGroup {
   display: flex;
   flex-direction: column;
@@ -823,12 +833,10 @@
 }
 
 /* popover base (compartilhado) */
+/* posicionamento agora vem do inline style do PortalPop (position: fixed) —
+   evita que o popover extrapole diálogos/colunas estreitas */
 .timePopover,
 .calPopover {
-  position: absolute;
-  z-index: 30;
-  top: calc(100% + 6px);
-  left: 0;
   background: var(--surface);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
@@ -1749,6 +1757,7 @@
   .timerDisplay { font-size: 40px; }
 
   .manualGrid { grid-template-columns: 1fr; }
+  .manualGridTime { grid-template-columns: 1fr; }
 
   .taskPriorityPicker { gap: 2px; }
   .taskPriorityBtn { padding: 0 5px; }
@@ -2361,14 +2370,15 @@
   padding: 22px;
   animation: dlgPop var(--transition-normal) var(--ease-out);
 }
-/* faixa de destaque no topo do diálogo */
+/* faixa de destaque no topo do diálogo — usa a cor do projeto quando definida
+   (--accent-color), senão cai no indigo da marca */
 .helpModal::before {
   content: '';
   position: absolute;
   top: 0; left: 22px; right: 22px;
   height: 2px;
   border-radius: 0 0 2px 2px;
-  background: linear-gradient(90deg, var(--primary), transparent 70%);
+  background: linear-gradient(90deg, var(--accent-color, var(--primary)), transparent 70%);
 }
 @keyframes dlgPop {
   from { opacity: 0; transform: scale(0.97) translateY(8px); }
