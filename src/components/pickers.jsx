@@ -225,12 +225,12 @@ export function PriorityPicker({ value, onChange, onOpenChange }) {
 }
 
 // ─── Chip picker (projeto / categoria) — portalado ──────────────────────────
-export function ChipPicker({ value, options, onChange, allowNone, noneLabel = 'Sem categoria', icon, title, large }) {
+export function ChipPicker({ value, options, onChange, allowNone, noneLabel = 'Sem categoria', icon, title, large, block }) {
   const { open, setOpen, pos, triggerRef, popRef } = useAnchoredPopover()
   const current = options.find(o => o.id === value) || null
   return (
-    <div className={`${styles.chipWrap} ${large ? styles.chipWrapLg : ''}`}>
-      <button ref={triggerRef} type="button" className={`${styles.chipPick} ${large ? styles.chipPickLg : ''} ${!current ? styles.chipPickNone : ''}`} onClick={() => setOpen(o => !o)} aria-haspopup="menu" aria-expanded={open} title={title}>
+    <div className={`${styles.chipWrap} ${large ? styles.chipWrapLg : ''} ${block ? styles.chipWrapBlock : ''}`}>
+      <button ref={triggerRef} type="button" className={`${styles.chipPick} ${large ? styles.chipPickLg : ''} ${block ? styles.chipPickBlock : ''} ${!current ? styles.chipPickNone : ''}`} onClick={() => setOpen(o => !o)} aria-haspopup="menu" aria-expanded={open} title={title}>
         {current ? <span className={styles.chipDot} style={{ background: current.color }} aria-hidden="true" /> : <i className={`ti ${icon || 'ti-tag'} ${styles.chipIcon}`} aria-hidden="true" />}
         <span className={styles.chipLabel}>{current?.name ?? noneLabel}</span>
         <i className={`ti ti-chevron-down ${styles.chipChevron}`} aria-hidden="true" />

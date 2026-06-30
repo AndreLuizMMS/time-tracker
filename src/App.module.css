@@ -3017,6 +3017,11 @@
   font-size: var(--text-sm);
   color: var(--text-primary);
 }
+
+/* variante bloco — preenche a coluna do form, substitui o <select> nativo */
+.chipWrapBlock { width: 100%; }
+.chipPickBlock { width: 100%; max-width: none; justify-content: flex-start; }
+.chipPickBlock .chipLabel { flex: 1; max-width: none; }
 .chipPickLg .chipDot { width: 9px; height: 9px; }
 .chipPickLg .chipIcon { font-size: 16px; }
 .chipPickLg .chipLabel { text-align: left; }
