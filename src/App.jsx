@@ -6,8 +6,8 @@ import {
 } from './lib/format'
 import {
   KEYS, GERAL_ID, GERAL, FALLBACK_COLOR, PRIORITY_DEFAULT, SCHEMA_VERSION,
-  ENTRY_KINDS, ENTRY_KIND_DEFAULT,
-  loadStorage, saveStorage, parseProjectId,
+  ENTRY_KINDS, ENTRY_KIND_DEFAULT, STATUS_LABELS,
+  loadStorage, saveStorage,
 } from './lib/storage'
 import { bootstrapState, importData } from './lib/migrate'
 import { buildRadar, buildProjectView, buildCola, buildTaskSecs, taskSignals } from './lib/selectors'
@@ -15,7 +15,24 @@ import { TimerBar } from './components/TimerBar'
 import { RadarBar } from './components/RadarBar'
 import { ProjectColumn } from './components/ProjectColumn'
 import { ColaDaily } from './components/ColaDaily'
+import { ChipPicker } from './components/pickers'
 import { EntryRow, DataMenu, ManualEntryForm, ProjectsManager, CategoriesManager, ColaEditDialog, TaskEditDialog } from './components/managers'
+
+// ─── Opções dos seletores de filtro (módulo-level — não recriar por render) ──
+const TASK_STATUS_FILTER_OPTIONS = [
+  { id: 'all', name: 'Todos os status' },
+  { id: 'aberta', name: STATUS_LABELS.aberta },
+  { id: 'aguardando', name: STATUS_LABELS.aguardando },
+  { id: 'concluida', name: STATUS_LABELS.concluida },
+]
+const TASK_DEADLINE_FILTER_OPTIONS = [
+  { id: 'all', name: 'Qualquer prazo' },
+  { id: 'overdue', name: 'Vencidas' },
+  { id: 'today', name: 'Vence hoje' },
+  { id: 'has', name: 'Com prazo' },
+  { id: 'none', name: 'Sem prazo' },
+]
+const KIND_FILTER_OPTIONS = [{ id: 'all', name: 'Toda classificação' }, ...ENTRY_KINDS]
 
 const DAILY_GOAL_SECS = 8 * 3600 // meta diária: 8h de trabalho
 
@@ -612,33 +629,14 @@ export default function App() {
           {taskFiltersOpen && (
             <div className={styles.filterPanel}>
               <div className={styles.filterRow}>
-                <div className={styles.selectWrap}>
-                  <select className={styles.formSelect} value={taskFilterStatus} onChange={e => setTaskFilterStatus(e.target.value)} aria-label="Filtrar por status">
-                    <option value="all">Todos os status</option>
-                    <option value="aberta">Aberta</option>
-                    <option value="aguardando">Aguardando</option>
-                    <option value="concluida">Concluída</option>
-                  </select>
-                  <i className={`ti ti-chevron-down ${styles.selectIcon}`} aria-hidden="true" />
-                </div>
-                <div className={styles.selectWrap}>
-                  <select className={styles.formSelect} value={taskFilterCategory === 'all' ? 'all' : taskFilterCategory === null ? '__none__' : taskFilterCategory} onChange={e => { const v = e.target.value; setTaskFilterCategory(v === 'all' ? 'all' : v === '__none__' ? null : Number(v)) }} aria-label="Filtrar por categoria">
-                    <option value="all">Todas as categorias</option>
-                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    <option value="__none__">Sem categoria</option>
-                  </select>
-                  <i className={`ti ti-chevron-down ${styles.selectIcon}`} aria-hidden="true" />
-                </div>
-                <div className={styles.selectWrap}>
-                  <select className={styles.formSelect} value={taskFilterDeadline} onChange={e => setTaskFilterDeadline(e.target.value)} aria-label="Filtrar por prazo">
-                    <option value="all">Qualquer prazo</option>
-                    <option value="overdue">Vencidas</option>
-                    <option value="today">Vence hoje</option>
-                    <option value="has">Com prazo</option>
-                    <option value="none">Sem prazo</option>
-                  </select>
-                  <i className={`ti ti-chevron-down ${styles.selectIcon}`} aria-hidden="true" />
-                </div>
+                <ChipPicker value={taskFilterStatus} options={TASK_STATUS_FILTER_OPTIONS} onChange={setTaskFilterStatus} icon="ti-progress-check" title="Filtrar por status" block />
+                <ChipPicker
+                  value={taskFilterCategory === 'all' ? 'all' : taskFilterCategory === null ? '__none__' : taskFilterCategory}
+                  options={[{ id: 'all', name: 'Todas as categorias' }, ...categories, { id: '__none__', name: 'Sem categoria' }]}
+                  onChange={v => setTaskFilterCategory(v === 'all' ? 'all' : v === '__none__' ? null : v)}
+                  icon="ti-tag" title="Filtrar por categoria" block
+                />
+                <ChipPicker value={taskFilterDeadline} options={TASK_DEADLINE_FILTER_OPTIONS} onChange={setTaskFilterDeadline} icon="ti-calendar-due" title="Filtrar por prazo" block />
                 <button type="button" className={`${styles.presetChip} ${taskFilterBlocking ? styles.presetChipActive : ''}`} onClick={() => setTaskFilterBlocking(b => !b)} aria-pressed={taskFilterBlocking}>
                   <i className="ti ti-alert-octagon" aria-hidden="true" /> Só bloqueantes
                 </button>
@@ -714,28 +712,19 @@ export default function App() {
                       ))}
                     </div>
                     <div className={styles.filterRow}>
-                      <div className={styles.selectWrap}>
-                        <select className={styles.formSelect} value={filterProject} onChange={e => setFilterProject(e.target.value === 'all' ? 'all' : parseProjectId(e.target.value))} aria-label="Filtrar por projeto">
-                          <option value="all">Todos os projetos</option>
-                          {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                        </select>
-                        <i className={`ti ti-chevron-down ${styles.selectIcon}`} aria-hidden="true" />
-                      </div>
-                      <div className={styles.selectWrap}>
-                        <select className={styles.formSelect} value={filterCategory === 'all' ? 'all' : filterCategory === null ? '__none__' : filterCategory} onChange={e => { const v = e.target.value; setFilterCategory(v === 'all' ? 'all' : v === '__none__' ? null : Number(v)) }} aria-label="Filtrar por categoria">
-                          <option value="all">Todas as categorias</option>
-                          {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                          <option value="__none__">Sem categoria</option>
-                        </select>
-                        <i className={`ti ti-chevron-down ${styles.selectIcon}`} aria-hidden="true" />
-                      </div>
-                      <div className={styles.selectWrap}>
-                        <select className={styles.formSelect} value={filterKind} onChange={e => setFilterKind(e.target.value)} aria-label="Filtrar por classificação">
-                          <option value="all">Toda classificação</option>
-                          {ENTRY_KINDS.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
-                        </select>
-                        <i className={`ti ti-chevron-down ${styles.selectIcon}`} aria-hidden="true" />
-                      </div>
+                      <ChipPicker
+                        value={filterProject}
+                        options={[{ id: 'all', name: 'Todos os projetos' }, ...projects]}
+                        onChange={setFilterProject}
+                        icon="ti-folder" title="Filtrar por projeto" block
+                      />
+                      <ChipPicker
+                        value={filterCategory === 'all' ? 'all' : filterCategory === null ? '__none__' : filterCategory}
+                        options={[{ id: 'all', name: 'Todas as categorias' }, ...categories, { id: '__none__', name: 'Sem categoria' }]}
+                        onChange={v => setFilterCategory(v === 'all' ? 'all' : v === '__none__' ? null : v)}
+                        icon="ti-tag" title="Filtrar por categoria" block
+                      />
+                      <ChipPicker value={filterKind} options={KIND_FILTER_OPTIONS} onChange={setFilterKind} icon="ti-tag" title="Filtrar por classificação" block />
                       <input type="date" className={styles.dateInput} value={filterFrom} max={filterTo || undefined} onChange={e => setFilterFrom(e.target.value)} aria-label="Data inicial" />
                       <span className={styles.filterSep}>até</span>
                       <input type="date" className={styles.dateInput} value={filterTo} min={filterFrom || undefined} onChange={e => setFilterTo(e.target.value)} aria-label="Data final" />

@@ -209,22 +209,6 @@
 .timerInput:focus { border-color: var(--primary); }
 .timerInput:disabled { opacity: 0.55; cursor: not-allowed; }
 
-/* select com chevron próprio */
-.selectWrap {
-  position: relative;
-  flex-shrink: 0;
-}
-
-.selectWrap .selectIcon {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  pointer-events: none;
-  font-size: 16px;
-  color: var(--text-tertiary);
-}
-
 .projSelect {
   height: 44px;
   padding: 0 38px 0 14px;
@@ -719,24 +703,6 @@
 
 .formInput::placeholder { color: var(--text-tertiary); }
 .formInput:focus { border-color: var(--primary); }
-
-.formSelect {
-  height: 44px;
-  width: 100%;
-  padding: 0 38px 0 14px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  color: var(--text-primary);
-  font-size: var(--text-base);
-  outline: none;
-  cursor: pointer;
-  appearance: none;
-  -webkit-appearance: none;
-  transition: border-color var(--transition-fast) ease;
-}
-
-.formSelect:focus { border-color: var(--primary); }
 
 /* ─── Field pickers (date / time) ────────────────────── */
 .field {
@@ -1752,7 +1718,6 @@
   .kpiValue { font-size: var(--text-base); }
   .kpiDivider { height: 26px; }
 
-  .selectWrap { flex: 1; }
   .projSelect { width: 100%; min-width: 0; }
   .timerDisplay { font-size: 40px; }
 
@@ -1768,7 +1733,7 @@
   .searchBar { flex: 1; width: auto; }
   .searchBar:focus-within { width: auto; }
   .filterRow { flex-wrap: wrap; }
-  .filterRow .selectWrap { flex: 1 1 100%; }
+  .filterRow .chipWrapBlock { flex: 1 1 100%; }
   .dateInput { flex: 1; }
   .breakdownName { width: 88px; }
 }
@@ -2039,8 +2004,8 @@
   border-radius: var(--radius-md);
 }
 
-.filterRow .selectWrap { min-width: 180px; }
-.filterRow .formSelect { height: 38px; }
+.filterRow .chipWrapBlock { min-width: 180px; }
+.filterRow .chipPickBlock { height: 38px; padding: 0 12px; border-radius: var(--radius-md); font-size: var(--text-sm); color: var(--text-primary); }
 
 .dateInput {
   height: 38px;

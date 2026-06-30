@@ -236,7 +236,7 @@ export function ChipPicker({ value, options, onChange, allowNone, noneLabel = 'S
   return (
     <div className={`${styles.chipWrap} ${large ? styles.chipWrapLg : ''} ${block ? styles.chipWrapBlock : ''}`}>
       <button ref={triggerRef} type="button" className={`${styles.chipPick} ${large ? styles.chipPickLg : ''} ${block ? styles.chipPickBlock : ''} ${!current ? styles.chipPickNone : ''}`} onClick={() => setOpen(o => !o)} aria-haspopup="menu" aria-expanded={open} title={title}>
-        {current ? <span className={styles.chipDot} style={{ background: current.color }} aria-hidden="true" /> : <i className={`ti ${icon || 'ti-tag'} ${styles.chipIcon}`} aria-hidden="true" />}
+        {current?.color ? <span className={styles.chipDot} style={{ background: current.color }} aria-hidden="true" /> : <i className={`ti ${icon || 'ti-tag'} ${styles.chipIcon}`} aria-hidden="true" />}
         <span className={styles.chipLabel}>{current?.name ?? noneLabel}</span>
         <i className={`ti ti-chevron-down ${styles.chipChevron}`} aria-hidden="true" />
       </button>
@@ -249,7 +249,7 @@ export function ChipPicker({ value, options, onChange, allowNone, noneLabel = 'S
           )}
           {options.map(o => (
             <button key={o.id} type="button" role="menuitemradio" aria-checked={o.id === value} className={`${styles.chipOpt} ${o.id === value ? styles.chipOptActive : ''}`} onClick={() => { onChange(o.id); setOpen(false) }}>
-              <span className={styles.chipDot} style={{ background: o.color }} aria-hidden="true" />{o.name}
+              {o.color ? <span className={styles.chipDot} style={{ background: o.color }} aria-hidden="true" /> : <i className={`ti ${icon || 'ti-tag'} ${styles.chipOptIcon}`} aria-hidden="true" />}{o.name}
             </button>
           ))}
         </PortalPop>

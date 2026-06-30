@@ -2,7 +2,7 @@ import { useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import styles from '../App.module.css'
 import { fmtClock, timeToSecs, secsToTime, todayStr } from '../lib/format'
-import { GERAL_ID, parseProjectId, parseCategoryId, PRIORITY_LABELS, STATUS_LABELS, ENTRY_KINDS, ENTRY_KIND_DEFAULT, ENTRY_KIND_LABELS, entryKindColor } from '../lib/storage'
+import { GERAL_ID, PRIORITY_LABELS, PRIORITY_COLORS, STATUS_LABELS, ENTRY_KINDS, ENTRY_KIND_DEFAULT, ENTRY_KIND_LABELS, entryKindColor } from '../lib/storage'
 import { ColorSwatch, ChipPicker, TimeField, DateField, useDismiss } from './pickers'
 
 // ─── Entry row (entrada de tempo) ─────────────────────────────────────────────
@@ -219,6 +219,9 @@ export function ColaEditDialog({ item, onSave, onCancel }) {
 }
 
 // ─── Dialog de edição completa de tarefa (aba de projeto) ─────────────────────
+const PRIORITY_OPTIONS = [1, 2, 3, 4].map(p => ({ id: p, name: `P${p} · ${PRIORITY_LABELS[p - 1]}`, color: PRIORITY_COLORS[p] }))
+const STATUS_OPTIONS = ['aberta', 'aguardando', 'concluida'].map(s => ({ id: s, name: STATUS_LABELS[s] }))
+
 export function TaskEditDialog({ task, categories, projects, today, onSave, onCancel }) {
   const [title, setTitle] = useState(task.title)
   const [projectId, setProjectId] = useState(task.projectId)
@@ -248,40 +251,19 @@ export function TaskEditDialog({ task, categories, projects, today, onSave, onCa
         <div className={styles.manualGrid}>
           <div className={styles.formGroup}>
             <label className={styles.formLabel}>Projeto</label>
-            <div className={styles.selectWrap}>
-              <select className={styles.formSelect} value={projectId} onChange={e => setProjectId(parseProjectId(e.target.value))}>
-                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-              <i className={`ti ti-chevron-down ${styles.selectIcon}`} aria-hidden="true" />
-            </div>
+            <ChipPicker value={projectId} options={projects} onChange={setProjectId} icon="ti-folder" title="Projeto" large block />
           </div>
           <div className={styles.formGroup}>
             <label className={styles.formLabel}>Categoria</label>
-            <div className={styles.selectWrap}>
-              <select className={styles.formSelect} value={categoryId ?? ''} onChange={e => setCategoryId(parseCategoryId(e.target.value))}>
-                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                <option value="">Sem categoria</option>
-              </select>
-              <i className={`ti ti-chevron-down ${styles.selectIcon}`} aria-hidden="true" />
-            </div>
+            <ChipPicker value={categoryId} options={categories} onChange={setCategoryId} allowNone noneLabel="Sem categoria" icon="ti-tag" title="Categoria" large block />
           </div>
           <div className={styles.formGroup}>
             <label className={styles.formLabel}>Prioridade</label>
-            <div className={styles.selectWrap}>
-              <select className={styles.formSelect} value={priority} onChange={e => setPriority(Number(e.target.value))}>
-                {[1, 2, 3, 4].map(p => <option key={p} value={p}>P{p} · {PRIORITY_LABELS[p - 1]}</option>)}
-              </select>
-              <i className={`ti ti-chevron-down ${styles.selectIcon}`} aria-hidden="true" />
-            </div>
+            <ChipPicker value={priority} options={PRIORITY_OPTIONS} onChange={setPriority} icon="ti-flag" title="Prioridade" large block />
           </div>
           <div className={styles.formGroup}>
             <label className={styles.formLabel}>Status</label>
-            <div className={styles.selectWrap}>
-              <select className={styles.formSelect} value={status} onChange={e => setStatus(e.target.value)}>
-                {['aberta', 'aguardando', 'concluida'].map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
-              </select>
-              <i className={`ti ti-chevron-down ${styles.selectIcon}`} aria-hidden="true" />
-            </div>
+            <ChipPicker value={status} options={STATUS_OPTIONS} onChange={setStatus} icon="ti-progress-check" title="Status" large block />
           </div>
         </div>
         {status === 'aguardando' && (
