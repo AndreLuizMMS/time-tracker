@@ -348,6 +348,9 @@ export default function App() {
     setColaEdit(null)
   }
 
+  // marca/desmarca "adicionado ao Simpli" (lançamento manual em outro software)
+  const toggleSimpli = id => setEntries(prev => prev.map(x => x.id === id ? { ...x, simpli: !x.simpli } : x))
+
   const deleteEntry = id => {
     if (editingEntry?.id === id) closeManual()
     const entry = entries.find(x => x.id === id)
@@ -369,10 +372,10 @@ export default function App() {
   // ── Backup ──
   const exportCsv = () => {
     if (entries.length === 0) { showNotice('Nada para exportar'); return }
-    const header = ['Data', 'Início', 'Fim', 'Duração (hh:mm)', 'Projeto', 'Categoria', 'Descrição']
+    const header = ['Data', 'Início', 'Fim', 'Duração (hh:mm)', 'Projeto', 'Categoria', 'Descrição', 'No Simpli']
     const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start))
     const lines = [header, ...sorted.map(e => [
-      e.date, e.start, e.end, fmtClock(e.dur), projName(e.projectId), catName(e.categoryId), e.desc,
+      e.date, e.start, e.end, fmtClock(e.dur), projName(e.projectId), catName(e.categoryId), e.desc, e.simpli ? 'Sim' : 'Não',
     ])]
     const csv = '﻿' + lines.map(r => r.map(csvCell).join(';')).join('\r\n')
     downloadFile(`time-tracker-${todayStr()}.csv`, csv, 'text/csv;charset=utf-8')
@@ -784,7 +787,7 @@ export default function App() {
                             project={{ name: projName(entry.projectId), color: projColor(entry.projectId) }}
                             category={entry.categoryId != null ? { name: catName(entry.categoryId) } : null}
                             editing={entry.id === editingEntry?.id}
-                            onEdit={startEdit} onDelete={deleteEntry} onResume={resumeEntry} onCopy={copyEntryHours} />
+                            onEdit={startEdit} onDelete={deleteEntry} onResume={resumeEntry} onCopy={copyEntryHours} onToggleSimpli={toggleSimpli} />
                         ))}
                       </div>
                     ))}

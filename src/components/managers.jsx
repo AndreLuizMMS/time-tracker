@@ -6,7 +6,7 @@ import { GERAL_ID, PRIORITY_LABELS, PRIORITY_COLORS, STATUS_LABELS, ENTRY_KINDS,
 import { ColorSwatch, ChipPicker, TimeField, DateField, useDismiss } from './pickers'
 
 // ─── Entry row (entrada de tempo) ─────────────────────────────────────────────
-export function EntryRow({ entry, project, category, editing, onEdit, onDelete, onResume, onCopy }) {
+export function EntryRow({ entry, project, category, editing, onEdit, onDelete, onResume, onCopy, onToggleSimpli }) {
   const [copied, setCopied] = useState(false)
   const handleCopy = async e => {
     e.stopPropagation()
@@ -15,7 +15,7 @@ export function EntryRow({ entry, project, category, editing, onEdit, onDelete, 
   }
   return (
     <div
-      className={`${styles.entryRow} ${editing ? styles.entryRowEditing : ''}`}
+      className={`${styles.entryRow} ${editing ? styles.entryRowEditing : ''} ${entry.simpli ? styles.entryRowSimpli : ''}`}
       style={{ '--entry-accent': project.color }}
       onClick={() => onEdit(entry)}
       role="button"
@@ -25,6 +25,15 @@ export function EntryRow({ entry, project, category, editing, onEdit, onDelete, 
       <div className={styles.entryTop}>
         <span className={styles.entryDesc}>{entry.desc}</span>
         <div className={styles.entryActions}>
+          <button
+            className={`${styles.iconAction} ${entry.simpli ? styles.iconActionSimpli : ''}`}
+            onClick={e => { e.stopPropagation(); onToggleSimpli(entry.id) }}
+            aria-label={entry.simpli ? 'Marcado como adicionado ao Simpli' : 'Marcar como adicionado ao Simpli'}
+            aria-pressed={!!entry.simpli}
+            title={entry.simpli ? 'Adicionado ao Simpli — clique p/ desmarcar' : 'Marcar como adicionado ao Simpli'}
+          >
+            <i className={`ti ${entry.simpli ? 'ti-checkbox' : 'ti-square'}`} aria-hidden="true" />
+          </button>
           <button className={styles.iconAction} onClick={e => { e.stopPropagation(); onResume(entry) }} aria-label="Retomar timer desta entrada" title="Retomar timer">
             <i className="ti ti-player-play" aria-hidden="true" />
           </button>
@@ -46,6 +55,9 @@ export function EntryRow({ entry, project, category, editing, onEdit, onDelete, 
           <span className={styles.entryKindDot} aria-hidden="true" />{ENTRY_KIND_LABELS[entry.kind] ?? ENTRY_KIND_LABELS[ENTRY_KIND_DEFAULT]}
         </span>
         <span className={styles.entryRange}>{entry.start} – {entry.end}</span>
+        {entry.simpli && (
+          <span className={styles.entrySimpliTag}><i className="ti ti-circle-check" aria-hidden="true" />no Simpli</span>
+        )}
         <span className={styles.entryDur}>{fmtClock(entry.dur)}</span>
       </div>
     </div>

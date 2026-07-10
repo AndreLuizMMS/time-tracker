@@ -21,6 +21,8 @@ export function normEntry(e) {
     categoryId: e.categoryId ?? e.proj ?? null,
     kind: e.kind ?? ENTRY_KIND_DEFAULT,
     taskId: e.taskId ?? null,
+    // marcador manual: já lancei essas horas no Simpli?
+    simpli: e.simpli ?? false,
   }
 }
 
