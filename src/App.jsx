@@ -11,6 +11,7 @@ import {
 } from './lib/storage'
 import { bootstrapState, importData } from './lib/migrate'
 import { buildRadar, buildProjectView, buildCola, buildTaskSecs, taskSignals } from './lib/selectors'
+import { dedupeAll } from './lib/dedupe'
 import { TimerBar } from './components/TimerBar'
 import { RadarBar } from './components/RadarBar'
 import { ProjectColumn } from './components/ProjectColumn'
@@ -191,6 +192,22 @@ export default function App() {
   const timerStartStr = timerStart
     ? secsToTime(new Date(timerStart).getHours() * 3600 + new Date(timerStart).getMinutes() * 60)
     : '00:00'
+
+  // ── Agrupamento por nome (duplicatas viram uma só) ──
+  // Roda sempre que tarefas/entradas mudam. Idempotente: se nada funde, não
+  // toca no estado (sem loop). Pausa com o timer ativo — a entrada em edição
+  // pelo cronômetro (resumeId) não pode ser absorvida no meio do caminho.
+  useEffect(() => {
+    if (timerActive) return
+    const r = dedupeAll(tasks, entries)
+    if (!r.total) return
+    setTasks(r.tasks)
+    setEntries(r.entries)
+    const parts = []
+    if (r.mergedTasks) parts.push(`${r.mergedTasks} tarefa${r.mergedTasks > 1 ? 's' : ''}`)
+    if (r.mergedEntries) parts.push(`${r.mergedEntries} entrada${r.mergedEntries > 1 ? 's' : ''}`)
+    showNotice(`Agrupado por nome: ${parts.join(' e ')}`)
+  }, [tasks, entries, timerActive]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Tasks (CRUD + máquina de estados) ──
   const updateTask = (id, patch) => setTasks(prev => prev.map(t => t.id === id ? { ...t, ...(typeof patch === 'function' ? patch(t) : patch) } : t))
