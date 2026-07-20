@@ -11,13 +11,13 @@ import {
 } from './lib/storage'
 import { bootstrapState, importData } from './lib/migrate'
 import { buildRadar, buildProjectView, buildCola, buildTaskSecs, taskSignals } from './lib/selectors'
-import { dedupeAll } from './lib/dedupe'
+import { dedupeTasks, groupEntriesByName } from './lib/dedupe'
 import { TimerBar } from './components/TimerBar'
 import { RadarBar } from './components/RadarBar'
 import { ProjectColumn } from './components/ProjectColumn'
 import { ColaDaily } from './components/ColaDaily'
 import { ChipPicker } from './components/pickers'
-import { EntryRow, DataMenu, ManualEntryForm, ProjectsManager, CategoriesManager, ColaEditDialog, TaskEditDialog } from './components/managers'
+import { EntryGroup, DataMenu, ManualEntryForm, ProjectsManager, CategoriesManager, ColaEditDialog, TaskEditDialog } from './components/managers'
 
 // ─── Opções dos seletores de filtro (módulo-level — não recriar por render) ──
 const TASK_STATUS_FILTER_OPTIONS = [
@@ -188,25 +188,27 @@ export default function App() {
   const copyEntryHours = async entry => {
     try { await navigator.clipboard.writeText(fmtClock(entry.dur)); return true } catch { return false }
   }
+  // copia o total do grupo (soma dos blocos com o mesmo nome no dia)
+  const copyGroupHours = async secs => {
+    try { await navigator.clipboard.writeText(fmtClock(secs)); return true } catch { return false }
+  }
 
   const timerStartStr = timerStart
     ? secsToTime(new Date(timerStart).getHours() * 3600 + new Date(timerStart).getMinutes() * 60)
     : '00:00'
 
-  // ── Agrupamento por nome (duplicatas viram uma só) ──
-  // Roda sempre que tarefas/entradas mudam. Idempotente: se nada funde, não
-  // toca no estado (sem loop). Pausa com o timer ativo — a entrada em edição
-  // pelo cronômetro (resumeId) não pode ser absorvida no meio do caminho.
+  // ── Tarefas duplicadas por nome viram uma só ──
+  // Só TAREFAS fundem. Entradas de tempo nunca — dois blocos do mesmo trabalho
+  // (manhã e tarde) são fatos distintos; a lista os agrupa visualmente.
+  // Idempotente: se nada funde, não toca no estado (sem loop). Pausa com o
+  // timer ativo — a tarefa cronometrada não pode ser absorvida no meio.
   useEffect(() => {
     if (timerActive) return
-    const r = dedupeAll(tasks, entries)
-    if (!r.total) return
+    const r = dedupeTasks(tasks, entries)
+    if (!r.mergedTasks) return
     setTasks(r.tasks)
     setEntries(r.entries)
-    const parts = []
-    if (r.mergedTasks) parts.push(`${r.mergedTasks} tarefa${r.mergedTasks > 1 ? 's' : ''}`)
-    if (r.mergedEntries) parts.push(`${r.mergedEntries} entrada${r.mergedEntries > 1 ? 's' : ''}`)
-    showNotice(`Agrupado por nome: ${parts.join(' e ')}`)
+    showNotice(`${r.mergedTasks} tarefa${r.mergedTasks > 1 ? 's' : ''} duplicada${r.mergedTasks > 1 ? 's' : ''} agrupada${r.mergedTasks > 1 ? 's' : ''}`)
   }, [tasks, entries, timerActive]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Tasks (CRUD + máquina de estados) ──
@@ -367,6 +369,11 @@ export default function App() {
 
   // marca/desmarca "adicionado ao Simpli" (lançamento manual em outro software)
   const toggleSimpli = id => setEntries(prev => prev.map(x => x.id === id ? { ...x, simpli: !x.simpli } : x))
+  // marca/desmarca o grupo inteiro de uma vez (todos os blocos do mesmo nome no dia)
+  const toggleSimpliGroup = (ids, value) => {
+    const set = new Set(ids)
+    setEntries(prev => prev.map(x => set.has(x.id) ? { ...x, simpli: value } : x))
+  }
 
   const deleteEntry = id => {
     if (editingEntry?.id === id) closeManual()
@@ -799,12 +806,13 @@ export default function App() {
                           <span className={styles.dayName}>{fmtDate(day)}</span>
                           <span className={styles.dayTotal}>{fmtClock(grouped[day].reduce((s, e) => s + e.dur, 0))}</span>
                         </div>
-                        {grouped[day].map(entry => (
-                          <EntryRow key={entry.id} entry={entry}
-                            project={{ name: projName(entry.projectId), color: projColor(entry.projectId) }}
-                            category={entry.categoryId != null ? { name: catName(entry.categoryId) } : null}
-                            editing={entry.id === editingEntry?.id}
-                            onEdit={startEdit} onDelete={deleteEntry} onResume={resumeEntry} onCopy={copyEntryHours} onToggleSimpli={toggleSimpli} />
+                        {groupEntriesByName(grouped[day]).map(group => (
+                          <EntryGroup key={group.key} group={group}
+                            project={{ name: projName(group.lead.projectId), color: projColor(group.lead.projectId) }}
+                            catName={catName}
+                            editingId={editingEntry?.id}
+                            onEdit={startEdit} onDelete={deleteEntry} onResume={resumeEntry}
+                            onCopy={copyEntryHours} onCopyTotal={copyGroupHours} onToggleSimpli={toggleSimpli} onToggleSimpliAll={toggleSimpliGroup} />
                         ))}
                       </div>
                     ))}

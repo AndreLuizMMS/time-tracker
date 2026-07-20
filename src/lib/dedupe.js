@@ -66,44 +66,40 @@ export function dedupeTasks(tasks, entries) {
   return { tasks: nextTasks, entries: nextEntries, remap, mergedTasks: remap.size }
 }
 
-// entradas do mesmo DIA + projeto + tarefa com a mesma descrição viram uma:
-// duração soma, janela vira [menor início, maior fim].
-// dias diferentes NUNCA fundem — o relatório diário depende disso.
-export function dedupeEntries(entries) {
+// ─── Agrupamento VISUAL de entradas (não destrutivo) ─────────────────────────
+// Entradas com a mesma descrição, no mesmo dia/projeto/classificação, são o
+// mesmo trabalho partido em blocos (manhã + tarde). A lista mostra UMA linha
+// com o total; os blocos continuam existindo, separados, e podem ser abertos.
+// Nada aqui altera o estado — só reorganiza para renderizar.
+export function groupEntriesByName(entries) {
   const byKey = new Map()
   const order = []
 
-  for (const e of [...entries].sort((a, b) => a.start.localeCompare(b.start))) {
-    const key = [e.date, e.projectId, e.taskId ?? '-', e.kind ?? ENTRY_KIND_DEFAULT, normTitle(e.desc)].join('::')
-    const base = byKey.get(key)
-    if (!base) { byKey.set(key, e); order.push(key); continue }
-    byKey.set(key, {
-      ...base,
-      categoryId: first(base.categoryId, e.categoryId),
-      start: base.start <= e.start ? base.start : e.start,
-      end: base.end >= e.end ? base.end : e.end,
-      dur: base.dur + e.dur,
-      // só continua "lançado no Simpli" se TODAS as partes já estavam
-      simpli: !!base.simpli && !!e.simpli,
-    })
+  for (const e of entries) {
+    const name = normTitle(e.desc)
+    // "Sem descrição" não é nome — entradas sem título nunca agrupam entre si
+    const key = name === '' || name === 'sem descricao'
+      ? `solo::${e.id}`
+      : [e.date, e.projectId, e.kind ?? ENTRY_KIND_DEFAULT, name].join('::')
+    const g = byKey.get(key)
+    if (!g) { byKey.set(key, { key, items: [e] }); order.push(key); continue }
+    g.items.push(e)
   }
 
-  const merged = entries.length - order.length
-  if (!merged) return { entries, mergedEntries: 0 }
-  const next = order.map(k => byKey.get(k))
-  next.sort((a, b) => b.date.localeCompare(a.date) || b.start.localeCompare(a.start))
-  return { entries: next, mergedEntries: merged }
-}
-
-// passada completa: tarefas primeiro (reaponta entradas), entradas depois
-export function dedupeAll(tasks, entries) {
-  const t = dedupeTasks(tasks, entries)
-  const e = dedupeEntries(t.entries)
-  return {
-    tasks: t.tasks,
-    entries: e.entries,
-    mergedTasks: t.mergedTasks,
-    mergedEntries: e.mergedEntries,
-    total: t.mergedTasks + e.mergedEntries,
-  }
+  return order.map(k => {
+    const { items } = byKey.get(k)
+    const sorted = [...items].sort((a, b) => a.start.localeCompare(b.start))
+    return {
+      key: k,
+      items: sorted,
+      lead: sorted[0],                                  // representa o grupo (desc, projeto, categoria)
+      total: sorted.reduce((s, e) => s + e.dur, 0),     // soma de horas do grupo
+      count: sorted.length,
+      firstStart: sorted[0].start,
+      lastEnd: sorted[sorted.length - 1].end,
+      // grupo só conta como lançado no Simpli quando TODOS os blocos estão
+      allSimpli: sorted.every(e => !!e.simpli),
+      anySimpli: sorted.some(e => !!e.simpli),
+    }
+  })
 }

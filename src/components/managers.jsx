@@ -64,6 +64,71 @@ export function EntryRow({ entry, project, category, editing, onEdit, onDelete, 
   )
 }
 
+// ─── Entry group (mesmo nome, mesmo dia) ──────────────────────────────────────
+// Um trabalho partido em blocos (manhã + tarde) aparece como UMA linha com a
+// soma das horas. Os blocos continuam separados — expandir mostra cada um.
+// Grupo de um bloco só cai direto no EntryRow: sem cabeçalho, sem ruído.
+export function EntryGroup({ group, project, catName, editingId, onEdit, onDelete, onResume, onCopy, onCopyTotal, onToggleSimpli, onToggleSimpliAll }) {
+  const [open, setOpen] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const rowFor = entry => (
+    <EntryRow key={entry.id} entry={entry}
+      project={project}
+      category={entry.categoryId != null ? { name: catName(entry.categoryId) } : null}
+      editing={entry.id === editingId}
+      onEdit={onEdit} onDelete={onDelete} onResume={onResume} onCopy={onCopy} onToggleSimpli={onToggleSimpli} />
+  )
+
+  if (group.count === 1) return rowFor(group.lead)
+
+  const ids = group.items.map(e => e.id)
+  const handleCopyTotal = async e => {
+    e.stopPropagation()
+    const ok = await onCopyTotal(group.total)
+    if (ok) { setCopied(true); setTimeout(() => setCopied(false), 1400) }
+  }
+
+  return (
+    <div className={`${styles.entryGroup} ${group.allSimpli ? styles.entryGroupSimpli : ''}`} style={{ '--entry-accent': project.color }}>
+      <button type="button" className={styles.entryGroupHead} onClick={() => setOpen(o => !o)} aria-expanded={open}
+        title={open ? 'Recolher blocos' : `Ver os ${group.count} blocos`}>
+        <i className={`ti ti-chevron-down ${styles.entryGroupChevron} ${open ? '' : styles.entryGroupChevronClosed}`} aria-hidden="true" />
+        <span className={styles.entryGroupDesc}>{group.lead.desc}</span>
+        <span className={styles.entryGroupCount} title="Blocos de tempo neste dia">{group.count}×</span>
+        <span className={styles.entryGroupTotal}>{fmtClock(group.total)}</span>
+      </button>
+
+      <div className={styles.entryGroupMeta}>
+        <span className={styles.entryProj}><span className={styles.entryProjDot} aria-hidden="true" />{project.name}</span>
+        {group.lead.categoryId != null && <span className={styles.entryCat}>{catName(group.lead.categoryId)}</span>}
+        <span className={styles.entryKind} style={{ '--kind-c': entryKindColor(group.lead.kind) }}>
+          <span className={styles.entryKindDot} aria-hidden="true" />{ENTRY_KIND_LABELS[group.lead.kind] ?? ENTRY_KIND_LABELS[ENTRY_KIND_DEFAULT]}
+        </span>
+        <span className={styles.entryRange}>{group.firstStart} – {group.lastEnd}</span>
+        {group.allSimpli && <span className={styles.entrySimpliTag}><i className="ti ti-circle-check" aria-hidden="true" />no Simpli</span>}
+        <div className={styles.entryGroupActions}>
+          <button
+            className={`${styles.iconAction} ${group.allSimpli ? styles.iconActionSimpli : ''}`}
+            onClick={() => onToggleSimpliAll(ids, !group.allSimpli)}
+            aria-pressed={group.allSimpli}
+            aria-label={group.allSimpli ? 'Desmarcar grupo no Simpli' : 'Marcar grupo como adicionado ao Simpli'}
+            title={group.allSimpli ? 'Todos no Simpli — clique p/ desmarcar' : group.anySimpli ? 'Parcialmente no Simpli — clique p/ marcar todos' : 'Marcar todos como adicionados ao Simpli'}
+          >
+            <i className={`ti ${group.allSimpli ? 'ti-checkbox' : group.anySimpli ? 'ti-square-minus' : 'ti-square'}`} aria-hidden="true" />
+          </button>
+          <button className={`${styles.iconAction} ${copied ? styles.iconActionOk : ''}`} onClick={handleCopyTotal}
+            aria-label="Copiar total do grupo" title={copied ? 'Copiado' : 'Copiar total somado'}>
+            <i className={`ti ${copied ? 'ti-check' : 'ti-copy'}`} aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+
+      {open && <div className={styles.entryGroupBody}>{group.items.map(rowFor)}</div>}
+    </div>
+  )
+}
+
 // ─── Data menu (export / import) ──────────────────────────────────────────────
 export function DataMenu({ onExportCsv, onExportJson, onImport }) {
   const [open, setOpen] = useState(false)
