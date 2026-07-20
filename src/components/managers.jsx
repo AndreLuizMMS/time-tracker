@@ -6,7 +6,7 @@ import { GERAL_ID, PRIORITY_LABELS, PRIORITY_COLORS, STATUS_LABELS, ENTRY_KINDS,
 import { ColorSwatch, ChipPicker, TimeField, DateField, useDismiss } from './pickers'
 
 // ─── Entry row (entrada de tempo) ─────────────────────────────────────────────
-export function EntryRow({ entry, project, category, editing, onEdit, onDelete, onResume, onCopy, onToggleSimpli }) {
+export function EntryRow({ entry, project, category, editing, onEdit, onDelete, onCopy, onToggleSimpli }) {
   const [copied, setCopied] = useState(false)
   const handleCopy = async e => {
     e.stopPropagation()
@@ -33,9 +33,6 @@ export function EntryRow({ entry, project, category, editing, onEdit, onDelete, 
             title={entry.simpli ? 'Adicionado ao Simpli — clique p/ desmarcar' : 'Marcar como adicionado ao Simpli'}
           >
             <i className={`ti ${entry.simpli ? 'ti-checkbox' : 'ti-square'}`} aria-hidden="true" />
-          </button>
-          <button className={styles.iconAction} onClick={e => { e.stopPropagation(); onResume(entry) }} aria-label="Retomar timer desta entrada" title="Retomar timer">
-            <i className="ti ti-player-play" aria-hidden="true" />
           </button>
           <button className={`${styles.iconAction} ${copied ? styles.iconActionOk : ''}`} onClick={handleCopy} aria-label="Copiar horas desta entrada" title={copied ? 'Copiado' : 'Copiar horas'}>
             <i className={`ti ${copied ? 'ti-check' : 'ti-copy'}`} aria-hidden="true" />
@@ -68,7 +65,7 @@ export function EntryRow({ entry, project, category, editing, onEdit, onDelete, 
 // Um trabalho partido em blocos (manhã + tarde) aparece como UMA linha com a
 // soma das horas. Os blocos continuam separados — expandir mostra cada um.
 // Grupo de um bloco só cai direto no EntryRow: sem cabeçalho, sem ruído.
-export function EntryGroup({ group, project, catName, editingId, onEdit, onDelete, onResume, onCopy, onCopyTotal, onToggleSimpli, onToggleSimpliAll }) {
+export function EntryGroup({ group, project, catName, editingId, onEdit, onDelete, onCopy, onCopyTotal, onToggleSimpli, onToggleSimpliAll }) {
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
 
@@ -77,7 +74,7 @@ export function EntryGroup({ group, project, catName, editingId, onEdit, onDelet
       project={project}
       category={entry.categoryId != null ? { name: catName(entry.categoryId) } : null}
       editing={entry.id === editingId}
-      onEdit={onEdit} onDelete={onDelete} onResume={onResume} onCopy={onCopy} onToggleSimpli={onToggleSimpli} />
+      onEdit={onEdit} onDelete={onDelete} onCopy={onCopy} onToggleSimpli={onToggleSimpli} />
   )
 
   if (group.count === 1) return rowFor(group.lead)

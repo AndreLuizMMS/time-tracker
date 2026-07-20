@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import styles from './App.module.css'
 import {
-  fmtDur, fmtClock, fmtDate, timeToSecs, secsToTime,
+  fmtDur, fmtClock, fmtDate, secsToTime,
   localDateStr, todayStr, addDays, csvCell, downloadFile,
 } from './lib/format'
 import {
@@ -94,14 +94,13 @@ export default function App() {
   const [timerDesc, setTimerDesc] = useState(savedTimer?.active ? (savedTimer.desc || '') : '')
   const [timerProject, setTimerProject] = useState(savedTimer?.active ? (savedTimer.projectId ?? GERAL_ID) : (prefs0?.projectId ?? GERAL_ID))
   const [timerCategory, setTimerCategory] = useState(savedTimer?.active ? (savedTimer.categoryId ?? null) : (prefs0?.categoryId ?? boot.categories[0]?.id ?? null))
-  const [timerResumeId, setTimerResumeId] = useState(savedTimer?.active ? (savedTimer.resumeId ?? null) : null)
   const [timerTaskId, setTimerTaskId] = useState(savedTimer?.active ? (savedTimer.taskId ?? null) : null)
   // classificação default sempre "Tarefa de Projeto" — o usuário troca na barra quando for tarefa pessoal
   const [timerKind, setTimerKind] = useState(savedTimer?.active ? (savedTimer.kind ?? ENTRY_KIND_DEFAULT) : ENTRY_KIND_DEFAULT)
   const tickRef = useRef(null)
 
   const persistTimer = patch => saveStorage(KEYS.timer, {
-    active: true, start: timerStart, desc: timerDesc, projectId: timerProject, categoryId: timerCategory, kind: timerKind, resumeId: timerResumeId, taskId: timerTaskId, ...patch,
+    active: true, start: timerStart, desc: timerDesc, projectId: timerProject, categoryId: timerCategory, kind: timerKind, taskId: timerTaskId, ...patch,
   })
 
   useEffect(() => {
@@ -119,51 +118,33 @@ export default function App() {
   const startTimer = () => {
     const s = Date.now()
     setTimerStart(s); setTimerActive(true); setTimerElapsed(0); setTimerTaskId(null)
-    saveStorage(KEYS.timer, { active: true, start: s, desc: timerDesc, projectId: timerProject, categoryId: timerCategory, kind: timerKind, resumeId: null, taskId: null })
+    saveStorage(KEYS.timer, { active: true, start: s, desc: timerDesc, projectId: timerProject, categoryId: timerCategory, kind: timerKind, taskId: null })
   }
 
   const stopTimer = () => {
     if (timerElapsed < 1) {
-      setTimerActive(false); setTimerElapsed(0); setTimerResumeId(null); setTimerTaskId(null)
+      setTimerActive(false); setTimerElapsed(0); setTimerTaskId(null)
       saveStorage(KEYS.timer, { active: false }); showNotice('Timer muito curto — descartado'); return
     }
     const startDate = new Date(timerStart)
     const dateStr = localDateStr(startDate)
     const startSecs = startDate.getHours() * 3600 + startDate.getMinutes() * 60 + startDate.getSeconds()
     const endSecs = (startSecs + timerElapsed) % 86400
-    if (timerResumeId !== null) {
-      setEntries(prev => prev.map(x => {
-        if (x.id !== timerResumeId) return x
-        const end = secsToTime((timeToSecs(x.start) + timerElapsed) % 86400)
-        return { ...x, desc: timerDesc || 'Sem descrição', projectId: timerProject, categoryId: timerCategory, kind: timerKind, end, dur: timerElapsed }
-      }))
-    } else {
-      const entry = {
-        id: Date.now(), date: dateStr, desc: timerDesc || 'Sem descrição',
-        projectId: timerProject, categoryId: timerCategory, kind: timerKind, taskId: timerTaskId,
-        start: secsToTime(startSecs), end: secsToTime(endSecs), dur: timerElapsed,
-      }
-      setEntries(e => [entry, ...e])
+    const entry = {
+      id: Date.now(), date: dateStr, desc: timerDesc || 'Sem descrição',
+      projectId: timerProject, categoryId: timerCategory, kind: timerKind, taskId: timerTaskId,
+      start: secsToTime(startSecs), end: secsToTime(endSecs), dur: timerElapsed,
     }
+    setEntries(e => [entry, ...e])
     rememberCapture(timerProject, timerCategory)
-    setTimerActive(false); setTimerElapsed(0); setTimerDesc(''); setTimerResumeId(null); setTimerTaskId(null); setTimerKind(ENTRY_KIND_DEFAULT)
+    setTimerActive(false); setTimerElapsed(0); setTimerDesc(''); setTimerTaskId(null); setTimerKind(ENTRY_KIND_DEFAULT)
     saveStorage(KEYS.timer, { active: false })
   }
 
   const discardTimer = () => {
-    setTimerActive(false); setTimerElapsed(0); setTimerResumeId(null); setTimerTaskId(null); setTimerKind(ENTRY_KIND_DEFAULT)
+    setTimerActive(false); setTimerElapsed(0); setTimerTaskId(null); setTimerKind(ENTRY_KIND_DEFAULT)
     saveStorage(KEYS.timer, { active: false })
     showNotice('Timer descartado')
-  }
-
-  const resumeEntry = entry => {
-    if (timerActive) { showNotice('Pare o timer atual primeiro'); return }
-    const s = Date.now() - entry.dur * 1000
-    setTimerDesc(entry.desc === 'Sem descrição' ? '' : entry.desc)
-    setTimerProject(entry.projectId); setTimerCategory(entry.categoryId); setTimerResumeId(entry.id); setTimerTaskId(entry.taskId ?? null); setTimerKind(entry.kind ?? ENTRY_KIND_DEFAULT)
-    setTimerStart(s); setTimerElapsed(entry.dur); setTimerActive(true)
-    saveStorage(KEYS.timer, { active: true, start: s, desc: entry.desc, projectId: entry.projectId, categoryId: entry.categoryId, kind: entry.kind ?? ENTRY_KIND_DEFAULT, resumeId: entry.id, taskId: entry.taskId ?? null })
-    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const startTimerFromTask = task => {
@@ -171,8 +152,8 @@ export default function App() {
     const s = Date.now()
     const cat = task.categoryId ?? lastCategoryId
     setTimerDesc(task.title); setTimerProject(task.projectId); setTimerCategory(cat); setTimerKind(ENTRY_KIND_DEFAULT)
-    setTimerStart(s); setTimerActive(true); setTimerElapsed(0); setTimerResumeId(null); setTimerTaskId(task.id)
-    saveStorage(KEYS.timer, { active: true, start: s, desc: task.title, projectId: task.projectId, categoryId: cat, kind: ENTRY_KIND_DEFAULT, resumeId: null, taskId: task.id })
+    setTimerStart(s); setTimerActive(true); setTimerElapsed(0); setTimerTaskId(task.id)
+    saveStorage(KEYS.timer, { active: true, start: s, desc: task.title, projectId: task.projectId, categoryId: cat, kind: ENTRY_KIND_DEFAULT, taskId: task.id })
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -811,7 +792,7 @@ export default function App() {
                             project={{ name: projName(group.lead.projectId), color: projColor(group.lead.projectId) }}
                             catName={catName}
                             editingId={editingEntry?.id}
-                            onEdit={startEdit} onDelete={deleteEntry} onResume={resumeEntry}
+                            onEdit={startEdit} onDelete={deleteEntry}
                             onCopy={copyEntryHours} onCopyTotal={copyGroupHours} onToggleSimpli={toggleSimpli} onToggleSimpliAll={toggleSimpliGroup} />
                         ))}
                       </div>
