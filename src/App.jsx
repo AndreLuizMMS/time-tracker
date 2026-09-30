@@ -12,6 +12,7 @@ import {
 import { bootstrapState, importData } from './lib/migrate'
 import { buildRadar, buildProjectView, buildCola, buildTaskSecs, taskSignals } from './lib/selectors'
 import { dedupeTasks, groupEntriesByName } from './lib/dedupe'
+import { organizeDay } from './lib/schedule'
 import { TimerBar } from './components/TimerBar'
 import { RadarBar } from './components/RadarBar'
 import { ProjectColumn } from './components/ProjectColumn'
@@ -366,6 +367,17 @@ export default function App() {
       next.sort((a, b) => b.date.localeCompare(a.date) || b.start.localeCompare(a.start))
       return next
     }))
+  }
+  // reorganiza os horários do dia (todas as entradas, ignora filtros): sem sobreposição, a partir das 9h
+  const organizeDayEntries = date => {
+    const prev = entries
+    const dayEntries = prev.filter(e => e.date === date)
+    const nextId = Math.max(Date.now(), ...prev.map(e => e.id)) + 1
+    const organized = organizeDay(dayEntries, nextId)
+    const next = [...prev.filter(e => e.date !== date), ...organized]
+    next.sort((a, b) => b.date.localeCompare(a.date) || b.start.localeCompare(a.start))
+    setEntries(next)
+    pushUndo('Horários organizados', () => setEntries(prev))
   }
   const handleUndo = () => {
     clearTimeout(undoTimerRef.current)
@@ -785,7 +797,13 @@ export default function App() {
                       <div className={styles.dayGroup} key={day}>
                         <div className={styles.dayHeader}>
                           <span className={styles.dayName}>{fmtDate(day)}</span>
-                          <span className={styles.dayTotal}>{fmtClock(grouped[day].reduce((s, e) => s + e.dur, 0))}</span>
+                          <span className={styles.dayHeaderEnd}>
+                            <button className={styles.organizeBtn} onClick={() => organizeDayEntries(day)}
+                              title="Organizar horários do dia (a partir das 9h, sem sobreposição, almoço 12:00–13:40)">
+                              <i className="ti ti-layout-rows" aria-hidden="true" />Organizar
+                            </button>
+                            <span className={styles.dayTotal}>{fmtClock(grouped[day].reduce((s, e) => s + e.dur, 0))}</span>
+                          </span>
                         </div>
                         {groupEntriesByName(grouped[day]).map(group => (
                           <EntryGroup key={group.key} group={group}

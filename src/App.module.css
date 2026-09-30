@@ -1057,6 +1057,27 @@
   text-transform: capitalize;
 }
 
+.dayHeaderEnd { display: flex; align-items: center; gap: 12px; }
+
+.organizeBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-tertiary);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  transition: color var(--transition-fast) ease, border-color var(--transition-fast) ease;
+}
+
+.organizeBtn:active { transform: scale(0.96); }
+
+@media (hover: hover) and (pointer: fine) {
+  .organizeBtn:hover { color: var(--text-primary); border-color: var(--border-strong); }
+}
+
 .dayTotal {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
