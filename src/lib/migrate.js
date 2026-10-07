@@ -23,6 +23,8 @@ export function normEntry(e) {
     taskId: e.taskId ?? null,
     // marcador manual: já lancei essas horas no Simpli?
     simpli: e.simpli ?? false,
+    // início/fim digitados à mão (fixos no organizar); dados antigos → false (não dá pra saber)
+    manualTime: e.manualTime ?? false,
   }
 }
 
