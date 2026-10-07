@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import styles from '../App.module.css'
 import { fmtClock, localDateStr, addDays } from '../lib/format'
 import { FALLBACK_COLOR } from '../lib/storage'
@@ -25,7 +26,7 @@ function ProjGroup({ project, children }) {
 }
 
 // cola do daily — três blocos derivados (fiz / vou fazer / aguardando), agrupados por projeto
-export function ColaDaily({ cola, projects, today, timerActive, timerTaskId, selectedDay, onSelectDay, onEditItem, onStartTimer, onStop, onComplete }) {
+export function ColaDaily({ cola, projects, categories, today, timerActive, timerTaskId, selectedDay, onSelectDay, onEditItem, onStartTimer, onStop, onComplete }) {
   const { lastDay, fizEntries, fizLoose, fizDone, vouFazer, bloqueios } = cola
   const lastDayTotal = fizEntries.reduce((s, e) => s + e.dur, 0)
   const canNext = lastDay < today
@@ -46,6 +47,21 @@ export function ColaDaily({ cola, projects, today, timerActive, timerTaskId, sel
     return { ...per, groups, total }
   }).filter(per => per.groups.length > 0)
   const vouByProj = groupByProject(vouFazer, projects)
+
+  // texto do bloco "fiz" pra colar na daily: uma linha por item (descrição · projeto · categoria), por período
+  const [copied, setCopied] = useState(false)
+  const copyFiz = async () => {
+    const catName = id => categories.find(c => c.id === id)?.name
+    const text = fizByPeriod.map(per => {
+      const lines = per.groups.flatMap(g => [...g.done.map(t => [t.title, t.categoryId]), ...g.loose.map(e => [e.desc, e.categoryId])]
+        .map(([desc, catId]) => `- ${[desc, g.project.name, catName(catId)].filter(Boolean).join(' · ')}`))
+      // entrada dividida pelo almoço/organizar repete o nome no mesmo período — uma linha só
+      return [per.label, ...new Set(lines)].join('\n')
+    }).join('\n\n')
+    try { await navigator.clipboard.writeText(text) } catch { return }
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
   const bloqByProj = groupByProject(bloqueios, projects)
 
   const editBtn = (kind, obj) => (
@@ -58,6 +74,10 @@ export function ColaDaily({ cola, projects, today, timerActive, timerTaskId, sel
     <section className={styles.colaCard}>
       <header className={styles.colaHead}>
         <span className={styles.colaTitle}><i className="ti ti-clipboard-text" aria-hidden="true" />Cola da daily</span>
+        <button type="button" className={`${styles.iconAction} ${copied ? styles.iconActionOk : ''}`} onClick={copyFiz} disabled={fizByPeriod.length === 0}
+          aria-label="Copiar o que fiz (manhã e tarde)" title={copied ? 'Copiado' : 'Copiar o que fiz (manhã e tarde)'}>
+          <i className={`ti ${copied ? 'ti-check' : 'ti-copy'}`} aria-hidden="true" />
+        </button>
       </header>
 
       {/* Fiz — dia selecionável (default: último dia com registro) */}
@@ -136,7 +156,7 @@ export function ColaDaily({ cola, projects, today, timerActive, timerTaskId, sel
                         <i className="ti ti-player-stop" aria-hidden="true" />
                       </button>
                     ) : (
-                      <button className={styles.iconAction} onClick={() => onStartTimer(t)} disabled={timerActive} aria-label="Iniciar timer" title={timerActive ? 'Timer em andamento' : 'Iniciar timer'}>
+                      <button className={styles.iconAction} onClick={() => onStartTimer(t)} aria-label="Iniciar timer" title={timerActive ? 'Parar o timer atual e iniciar este' : 'Iniciar timer'}>
                         <i className="ti ti-player-play" aria-hidden="true" />
                       </button>
                     )}
