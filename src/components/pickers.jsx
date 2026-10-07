@@ -152,9 +152,9 @@ export const TimeField = forwardRef(function TimeField({ value, onChange, onComp
       onComplete?.()
     }
   }
-  const handleBlur = () => {
-    setFocused(false)
-    const d = draft.replace(/\D/g, '')
+  // lê do DOM, não do draft: onComplete pode mover o foco no mesmo tick da última tecla (draft ainda defasado)
+  const commit = e => {
+    const d = e.target.value.replace(/\D/g, '')
     if (!d) { setDraft(value); return }
     // entrada parcial preserva a parte não digitada do valor atual (digitar só a hora não zera os minutos)
     const [, vm] = value.split(':')
@@ -167,7 +167,7 @@ export const TimeField = forwardRef(function TimeField({ value, onChange, onComp
     <div className={styles.field} ref={triggerRef}>
       <div className={`${styles.fieldTrigger} ${open ? styles.fieldTriggerOpen : ''}`}>
         <i className="ti ti-clock-hour-4" aria-hidden="true" />
-        <input ref={inputRef} className={styles.timeTextInput} value={draft} onChange={handleType} onBlur={handleBlur} onFocus={e => { setFocused(true); e.target.select() }} inputMode="numeric" placeholder="--:--" maxLength={5} aria-label="Hora (HH:MM)" />
+        <input ref={inputRef} className={styles.timeTextInput} value={draft} onChange={handleType} onBlur={e => { setFocused(false); commit(e) }} onKeyDown={e => { if (e.key === 'Enter') commit(e) }} onFocus={e => { setFocused(true); e.target.select() }} inputMode="numeric" placeholder="--:--" maxLength={5} aria-label="Hora (HH:MM)" />
         <button type="button" className={styles.fieldChevronBtn} onClick={() => setOpen(o => !o)} aria-label="Escolher hora" aria-haspopup="dialog" aria-expanded={open}><i className={`ti ti-chevron-down ${styles.fieldChevron}`} aria-hidden="true" /></button>
       </div>
       {open && (
