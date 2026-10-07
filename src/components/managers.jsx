@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import styles from '../App.module.css'
-import { fmtClock, timeToSecs, secsToTime, todayStr } from '../lib/format'
+import { fmtClock, fmtDayShort, timeToSecs, secsToTime, todayStr } from '../lib/format'
 import { GERAL_ID, PRIORITY_LABELS, PRIORITY_COLORS, STATUS_LABELS, ENTRY_KINDS, ENTRY_KIND_DEFAULT, ENTRY_KIND_LABELS, entryKindColor } from '../lib/storage'
 import { ColorSwatch, ChipPicker, TimeField, DateField, useDismiss } from './pickers'
 
@@ -159,15 +159,21 @@ export function DataMenu({ onExportCsv, onExportJson, onImport }) {
 // ─── Manual entry form (auto-contido; remonta por `key` ao trocar de edição) ──
 export function ManualEntryForm({ editing, projects, categories, defaultProjectId, defaultCategoryId, entries, onSave, onCancel }) {
   const init = editing || {}
+  // próximo horário livre do dia: fim da última entrada, ou 09:00 (recua se a duração não couber até 23:59)
+  const nextFreeStart = (d, dur) => Math.max(0, Math.min(
+    entries.reduce((m, x) => x.date === d ? Math.max(m, timeToSecs(x.end)) : m, 9 * 3600), 86340 - dur))
   const [date, setDate] = useState(init.date ?? todayStr())
-  const [start, setStart] = useState(init.start ?? '09:00')
-  const [end, setEnd] = useState(init.end ?? '10:00')
+  const [start, setStart] = useState(() => init.start ?? secsToTime(nextFreeStart(todayStr(), 3600)))
+  const [end, setEnd] = useState(() => init.end ?? secsToTime(timeToSecs(start) + 3600))
+  // início/fim só contam como "digitados à mão" quando o usuário mexe neles (duração sozinha não fixa)
+  const [timeTouched, setTimeTouched] = useState(false)
+  const [more, setMore] = useState(!!init.manualTime)
   const [desc, setDesc] = useState(init.desc && init.desc !== 'Sem descrição' ? init.desc : '')
   const [projectId, setProjectId] = useState(init.projectId ?? defaultProjectId ?? GERAL_ID)
   const [categoryId, setCategoryId] = useState(init.categoryId ?? defaultCategoryId ?? categories[0]?.id ?? null)
   const [kind, setKind] = useState(init.kind ?? ENTRY_KIND_DEFAULT)
   const [err, setErr] = useState('')
-  const endRef = useRef(null)
+  const submitRef = useRef(null)
 
   const sSec = timeToSecs(start)
   const eSec = timeToSecs(end)
@@ -177,6 +183,19 @@ export function ManualEntryForm({ editing, projects, categories, defaultProjectI
     if (endS > 86340) endS = 86340
     setEnd(secsToTime(endS))
   }
+  // nova entrada sem horário digitado: trocar o dia reposiciona no próximo horário livre daquele dia
+  const changeDate = d => {
+    setDate(d)
+    if (editing || timeTouched) return
+    const s = nextFreeStart(d, durSecs)
+    setStart(secsToTime(s)); setEnd(secsToTime(s + durSecs))
+  }
+  // mudar o início carrega o fim junto (preserva a duração) em vez de deixar o fim para trás
+  const changeStart = v => {
+    setStart(v); setTimeTouched(true)
+    setEnd(secsToTime(Math.min(86340, timeToSecs(v) + durSecs)))
+  }
+  const fixed = !!init.manualTime || timeTouched
   const overlap = eSec > sSec && entries.some(x =>
     x.id !== editing?.id && x.date === date && sSec < timeToSecs(x.end) && eSec > timeToSecs(x.start)
   )
@@ -189,6 +208,8 @@ export function ManualEntryForm({ editing, projects, categories, defaultProjectI
       date, desc: desc || 'Sem descrição',
       projectId, categoryId, kind,
       start, end, dur: eSec - sSec,
+      // horário digitado à mão: o organizar não move
+      manualTime: fixed,
     })
   }
 
@@ -203,14 +224,6 @@ export function ManualEntryForm({ editing, projects, categories, defaultProjectI
       </div>
       <div className={styles.manualGrid}>
         <div className={styles.formGroup}>
-          <label className={styles.formLabel}>Data</label>
-          <DateField value={date} onChange={setDate} />
-        </div>
-        <div className={styles.formGroup}>
-          <label className={styles.formLabel}>Classificação</label>
-          <ChipPicker value={kind} options={ENTRY_KINDS} onChange={setKind} icon="ti-tag" title="Classificação" large block />
-        </div>
-        <div className={styles.formGroup}>
           <label className={styles.formLabel}>Projeto</label>
           <ChipPicker value={projectId} options={projects} onChange={setProjectId} icon="ti-folder" title="Projeto" large block />
         </div>
@@ -219,24 +232,41 @@ export function ManualEntryForm({ editing, projects, categories, defaultProjectI
           <ChipPicker value={categoryId} options={categories} onChange={setCategoryId} allowNone noneLabel="Sem categoria" icon="ti-tag" title="Categoria" large block />
         </div>
       </div>
-      <div className={styles.manualGridTime}>
+      <div className={styles.manualGridMain}>
         <div className={styles.formGroup}>
-          <label className={styles.formLabel}>Início</label>
-          <TimeField value={start} onChange={setStart} />
-        </div>
-        <div className={styles.formGroup}>
-          <label className={styles.formLabel}>Fim</label>
-          <TimeField ref={endRef} value={end} onChange={setEnd} />
+          <label className={styles.formLabel} htmlFor="manual-desc">Descrição</label>
+          <input id="manual-desc" className={styles.formInput} placeholder="O que você trabalhou?" value={desc} onChange={e => setDesc(e.target.value)} autoFocus />
         </div>
         <div className={styles.formGroup}>
           <label className={styles.formLabel}>Duração</label>
-          <TimeField value={secsToTime(durSecs)} onChange={setDurationField} />
+          <TimeField value={secsToTime(durSecs)} onChange={setDurationField} onComplete={() => submitRef.current?.focus()} />
         </div>
       </div>
-      <div className={styles.formGroup} style={{ marginBottom: '12px' }}>
-        <label className={styles.formLabel}>Descrição</label>
-        <input className={styles.formInput} placeholder="O que você trabalhou?" value={desc} onChange={e => setDesc(e.target.value)} />
-      </div>
+      <button type="button" className={`${styles.manualMore} ${more ? styles.manualMoreOpen : ''}`} onClick={() => setMore(o => !o)} aria-expanded={more} aria-controls="manual-more">
+        <i className="ti ti-calendar-time" aria-hidden="true" />
+        <span>{date === todayStr() ? 'Hoje' : fmtDayShort(date)} · {start}–{end}{fixed && ' · horário fixo'} · {ENTRY_KIND_LABELS[kind]}</span>
+        <i className={`ti ti-chevron-down ${styles.chevron}`} aria-hidden="true" />
+      </button>
+      {more && (
+        <div className={styles.manualGrid} id="manual-more">
+          <div className={styles.formGroup}>
+            <label className={styles.formLabel}>Data</label>
+            <DateField value={date} onChange={changeDate} />
+          </div>
+          <div className={styles.formGroup}>
+            <label className={styles.formLabel}>Classificação</label>
+            <ChipPicker value={kind} options={ENTRY_KINDS} onChange={setKind} icon="ti-tag" title="Classificação" large block />
+          </div>
+          <div className={styles.formGroup}>
+            <label className={styles.formLabel}>Início</label>
+            <TimeField value={start} onChange={changeStart} />
+          </div>
+          <div className={styles.formGroup}>
+            <label className={styles.formLabel}>Fim</label>
+            <TimeField value={end} onChange={v => { setEnd(v); setTimeTouched(true) }} />
+          </div>
+        </div>
+      )}
       {(err || overlap) && (
         <div className={styles.manualFeedback}>
           {err ? (
@@ -248,7 +278,7 @@ export function ManualEntryForm({ editing, projects, categories, defaultProjectI
       )}
       <div className={styles.manualFooter}>
         <button type="button" className={styles.btnSecondary} onClick={onCancel}>Cancelar</button>
-        <button type="submit" className={styles.btnPrimary}>{editing ? 'Salvar' : 'Adicionar'}</button>
+        <button ref={submitRef} type="submit" className={styles.btnPrimary}>{editing ? 'Salvar' : 'Adicionar'}</button>
       </div>
     </form>
     </div>,

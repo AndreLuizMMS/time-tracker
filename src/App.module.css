@@ -660,12 +660,39 @@
   margin-bottom: 12px;
 }
 
-/* linha de início/fim/duração — sempre 3 colunas iguais, nunca campo órfão */
-.manualGridTime {
+/* descrição + duração — o par que se preenche em toda entrada */
+.manualGridMain {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 148px;
   gap: 12px;
   margin-bottom: 12px;
+}
+
+/* resumo de data · horário · classificação; abre os campos raramente usados */
+.manualMore {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  margin-bottom: 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+  transition: color var(--transition-fast) ease;
+}
+
+.manualMore > i:first-child { font-size: 17px; color: var(--text-tertiary); flex-shrink: 0; }
+.manualMore span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.manualMoreOpen { color: var(--text-primary); }
+.manualMoreOpen .chevron { transform: rotate(180deg); }
+
+@media (hover: hover) and (pointer: fine) {
+  .manualMore:hover { color: var(--text-primary); }
 }
 
 .manualFeedback { margin-bottom: 12px; }
@@ -1743,7 +1770,7 @@
   .timerDisplay { font-size: 40px; }
 
   .manualGrid { grid-template-columns: 1fr; }
-  .manualGridTime { grid-template-columns: 1fr; }
+  .manualGridMain { grid-template-columns: 1fr; }
 
   .taskPriorityPicker { gap: 2px; }
   .taskPriorityBtn { padding: 0 5px; }
