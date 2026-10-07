@@ -16,6 +16,7 @@ export function TimerBar({
           placeholder="O que você está trabalhando?"
           value={desc}
           onChange={e => onDescChange(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && !active) onStart() }}
         />
         <ChipPicker large value={projectId} options={projects} onChange={onProjectChange} icon="ti-folder" title="Projeto" />
         <ChipPicker large value={categoryId} options={categories} onChange={onCategoryChange} allowNone noneLabel="Sem categoria" icon="ti-tag" title="Categoria" />

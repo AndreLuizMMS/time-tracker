@@ -59,10 +59,10 @@ function useAnchoredPopover() {
   return { open, setOpen, pos, triggerRef, popRef }
 }
 
-function PortalPop({ popRef, pos, className, role, children }) {
+function PortalPop({ popRef, pos, className, role, onKeyDown, children }) {
   if (!pos) return null
   return createPortal(
-    <div ref={popRef} className={className} role={role} style={{ position: 'fixed', top: pos.top, left: pos.left ?? 'auto', right: pos.right ?? 'auto', zIndex: 100 }}>
+    <div ref={popRef} data-pop className={className} role={role} onKeyDown={onKeyDown} style={{ position: 'fixed', top: pos.top, left: pos.left ?? 'auto', right: pos.right ?? 'auto', zIndex: 100 }}>
       {children}
     </div>,
     document.body
@@ -123,7 +123,8 @@ function CalPanel({ value, onPick }) {
 }
 
 // ─── Time field (digitável + roletas) — portalado ao body, escapa do diálogo ─
-export const TimeField = forwardRef(function TimeField({ value, onChange, onComplete }, inputRef) {
+// duration: 1–2 dígitos são minutos (30 → 00:30, 90 → 01:30) em vez de hora
+export const TimeField = forwardRef(function TimeField({ value, onChange, onComplete, duration }, inputRef) {
   const { open, setOpen, pos, triggerRef, popRef } = useAnchoredPopover()
   const [draft, setDraft] = useState(value)
   const [focused, setFocused] = useState(false)
@@ -140,7 +141,8 @@ export const TimeField = forwardRef(function TimeField({ value, onChange, onComp
   const handleType = e => {
     const el = e.target
     const d = el.value.replace(/\D/g, '').slice(0, 4)
-    const formatted = d.length > 2 ? `${d.slice(0, 2)}:${d.slice(2)}` : d
+    // 3 dígitos = H:MM (250 → 2:50); 4 dígitos = HH:MM
+    const formatted = d.length > 3 ? `${d.slice(0, 2)}:${d.slice(2)}` : d.length === 3 ? `${d[0]}:${d.slice(1)}` : d
     setDraft(formatted)
     // o ":" auto-inserido empurra o cursor pra antes do dígito de minuto → próximo dígito entra na frente
     // (03:1 + 0 = 03:01). força o cursor pro fim após o render p/ digitação sequencial correta.
@@ -156,10 +158,16 @@ export const TimeField = forwardRef(function TimeField({ value, onChange, onComp
   const commit = e => {
     const d = e.target.value.replace(/\D/g, '')
     if (!d) { setDraft(value); return }
+    if (duration && d.length <= 2) {
+      const total = parseInt(d, 10)
+      const v = `${pad2(Math.floor(total / 60))}:${pad2(total % 60)}`
+      onChange(v); setDraft(v); return
+    }
     // entrada parcial preserva a parte não digitada do valor atual (digitar só a hora não zera os minutos)
     const [, vm] = value.split(':')
-    const hh = Math.min(23, parseInt(d.slice(0, 2), 10))
-    const mm = d.length > 2 ? Math.min(59, parseInt(d.slice(2, 4), 10)) : parseInt(vm, 10)
+    const hLen = d.length === 3 ? 1 : 2
+    const hh = Math.min(23, parseInt(d.slice(0, hLen), 10))
+    const mm = d.length > 2 ? Math.min(59, parseInt(d.slice(hLen, 4), 10)) : parseInt(vm, 10)
     const v = `${pad2(hh)}:${pad2(mm)}`
     onChange(v); setDraft(v)
   }
@@ -233,6 +241,22 @@ export function PriorityPicker({ value, onChange, onOpenChange }) {
 export function ChipPicker({ value, options, onChange, allowNone, noneLabel = 'Sem categoria', icon, title, large, block }) {
   const { open, setOpen, pos, triggerRef, popRef } = useAnchoredPopover()
   const current = options.find(o => o.id === value) || null
+  // teclado: ao abrir foca a opção atual; setas navegam, Enter escolhe, Esc/Tab devolvem o foco ao gatilho
+  useEffect(() => {
+    if (pos) (popRef.current?.querySelector('[aria-checked="true"]') ?? popRef.current?.querySelector('button'))?.focus()
+  }, [!!pos]) // eslint-disable-line react-hooks/exhaustive-deps
+  const close = () => { setOpen(false); triggerRef.current?.focus() }
+  const pick = v => { onChange(v); close() }
+  const onPopKey = e => {
+    if (e.key === ' ') { e.stopPropagation(); return } // não deixa o atalho global (Space = timer) roubar a tecla
+    // stopPropagation: o Esc fecha só o menu, não o diálogo por baixo
+    if (e.key === 'Escape' || e.key === 'Tab') { e.preventDefault(); e.stopPropagation(); close(); return }
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+    e.preventDefault()
+    const opts = [...popRef.current.querySelectorAll('button')]
+    const i = opts.indexOf(document.activeElement) + (e.key === 'ArrowDown' ? 1 : -1)
+    opts[(i + opts.length) % opts.length]?.focus()
+  }
   return (
     <div className={`${styles.chipWrap} ${large ? styles.chipWrapLg : ''} ${block ? styles.chipWrapBlock : ''}`}>
       <button ref={triggerRef} type="button" className={`${styles.chipPick} ${large ? styles.chipPickLg : ''} ${block ? styles.chipPickBlock : ''} ${!current ? styles.chipPickNone : ''}`} onClick={() => setOpen(o => !o)} aria-haspopup="menu" aria-expanded={open} title={title}>
@@ -241,14 +265,14 @@ export function ChipPicker({ value, options, onChange, allowNone, noneLabel = 'S
         <i className={`ti ti-chevron-down ${styles.chipChevron}`} aria-hidden="true" />
       </button>
       {open && (
-        <PortalPop popRef={popRef} pos={pos} className={styles.chipPop} role="menu">
+        <PortalPop popRef={popRef} pos={pos} className={styles.chipPop} role="menu" onKeyDown={onPopKey}>
           {allowNone && (
-            <button type="button" role="menuitemradio" aria-checked={value == null} className={`${styles.chipOpt} ${value == null ? styles.chipOptActive : ''}`} onClick={() => { onChange(null); setOpen(false) }}>
+            <button type="button" role="menuitemradio" aria-checked={value == null} className={`${styles.chipOpt} ${value == null ? styles.chipOptActive : ''}`} onClick={() => pick(null)}>
               <i className={`ti ${icon || 'ti-tag-off'} ${styles.chipOptIcon}`} aria-hidden="true" />{noneLabel}
             </button>
           )}
           {options.map(o => (
-            <button key={o.id} type="button" role="menuitemradio" aria-checked={o.id === value} className={`${styles.chipOpt} ${o.id === value ? styles.chipOptActive : ''}`} onClick={() => { onChange(o.id); setOpen(false) }}>
+            <button key={o.id} type="button" role="menuitemradio" aria-checked={o.id === value} className={`${styles.chipOpt} ${o.id === value ? styles.chipOptActive : ''}`} onClick={() => pick(o.id)}>
               {o.color ? <span className={styles.chipDot} style={{ background: o.color }} aria-hidden="true" /> : <i className={`ti ${icon || 'ti-tag'} ${styles.chipOptIcon}`} aria-hidden="true" />}{o.name}
             </button>
           ))}
@@ -269,11 +293,13 @@ export function TimeLogControl({ onLog, disabled }) {
     requestAnimationFrame(() => inputRef.current?.select())
   }, [open])
   const d = draft.replace(/\D/g, '')
-  const secs = d ? (parseInt(d.slice(0, 2) || '0', 10) * 3600 + Math.min(59, parseInt(d.slice(2, 4) || '0', 10)) * 60) : 0
+  // 1–2 dígitos = minutos (45 → 45min); 3 = H:MM (130 → 1h30); 4 = HH:MM
+  const secs = !d ? 0 : d.length <= 2 ? parseInt(d, 10) * 60
+    : parseInt(d.slice(0, d.length - 2), 10) * 3600 + Math.min(59, parseInt(d.slice(-2), 10)) * 60
   const handleType = e => {
     const el = e.target
     const digits = el.value.replace(/\D/g, '').slice(0, 4)
-    const f = digits.length > 2 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : digits
+    const f = digits.length > 2 ? `${digits.slice(0, digits.length - 2)}:${digits.slice(-2)}` : digits
     setDraft(f)
     requestAnimationFrame(() => { try { el.setSelectionRange(f.length, f.length) } catch {} })
   }
@@ -287,7 +313,7 @@ export function TimeLogControl({ onLog, disabled }) {
       {open && (
         <PortalPop popRef={popRef} pos={pos} className={styles.timeLogPop} role="dialog">
           <div className={styles.timeLogLabel}>Lançar tempo</div>
-          <input ref={inputRef} className={styles.timeLogInput} value={draft} onChange={handleType} onFocus={e => e.target.select()} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); fire(true) } }} inputMode="numeric" placeholder="HH:MM" maxLength={5} aria-label="Duração (HH:MM)" />
+          <input ref={inputRef} className={styles.timeLogInput} value={draft} onChange={handleType} onFocus={e => e.target.select()} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); fire(false) } }} inputMode="numeric" placeholder="HH:MM" maxLength={5} aria-label="Duração (HH:MM)" />
           <div className={styles.timeLogChips}>
             {chips.map(([lbl, s]) => (
               <button key={lbl} type="button" className={styles.timeLogChip} onClick={() => setDraft(secsToTime(s))}>{lbl}</button>
