@@ -45,7 +45,7 @@ export function RadarBar({ radar, projById, today, onComplete, onBringBack, onSt
       <i className="ti ti-player-stop" aria-hidden="true" />
     </button>
   ) : (
-    <button className={styles.radarAction} onClick={() => onStartTimer(t)} disabled={timerActive} aria-label="Iniciar timer" title={timerActive ? 'Timer em andamento' : 'Iniciar timer'}>
+    <button className={styles.radarAction} onClick={() => onStartTimer(t)} aria-label="Iniciar timer" title={timerActive ? 'Parar o timer atual e iniciar este' : 'Iniciar timer'}>
       <i className="ti ti-player-play" aria-hidden="true" />
     </button>
   )

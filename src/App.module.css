@@ -316,7 +316,7 @@
   padding: 20px;
 }
 
-.colaHead { margin-bottom: 16px; }
+.colaHead { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 16px; }
 
 .colaTitle {
   display: inline-flex;
@@ -2353,6 +2353,28 @@
 }
 
 .noticeToast i { font-size: 16px; color: var(--info); }
+
+/* falha de gravação — persistente, no topo, acima de tudo */
+.saveFailBanner {
+  position: fixed;
+  top: calc(12px + env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100vw - 32px);
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--error);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: 95;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.saveFailBanner i { font-size: 16px; color: var(--error); flex-shrink: 0; }
 
 /* ─── Dialog system (custom) — help, entrada manual, edição ─────────── */
 .helpOverlay {

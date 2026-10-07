@@ -62,5 +62,8 @@ export function loadStorage(key, fallback) {
 export function saveStorage(key, value) {
   try {
     localStorage.setItem(key, JSON.stringify(value))
-  } catch {}
+  } catch {
+    // cota cheia / storage bloqueado: a UI precisa avisar, senão as horas somem no reload
+    window.dispatchEvent(new Event('tt:save-failed'))
+  }
 }

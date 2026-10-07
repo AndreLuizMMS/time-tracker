@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import styles from '../App.module.css'
 import { fmtClock, fmtDayShort, timeToSecs, secsToTime, todayStr } from '../lib/format'
@@ -156,6 +156,15 @@ export function DataMenu({ onExportCsv, onExportJson, onImport }) {
   )
 }
 
+// Esc fecha o diálogo — exceto com um popover aberto por cima (o Esc é dele)
+function useEscape(onCancel) {
+  useEffect(() => {
+    const onKey = e => { if (e.key === 'Escape' && !document.querySelector('[data-pop]')) onCancel() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  })
+}
+
 // ─── Manual entry form (auto-contido; remonta por `key` ao trocar de edição) ──
 export function ManualEntryForm({ editing, projects, categories, defaultProjectId, defaultCategoryId, entries, onSave, onCancel }) {
   const init = editing || {}
@@ -173,15 +182,20 @@ export function ManualEntryForm({ editing, projects, categories, defaultProjectI
   const [categoryId, setCategoryId] = useState(init.categoryId ?? defaultCategoryId ?? categories[0]?.id ?? null)
   const [kind, setKind] = useState(init.kind ?? ENTRY_KIND_DEFAULT)
   const [err, setErr] = useState('')
+  const [clamped, setClamped] = useState(false)
   const submitRef = useRef(null)
+  useEscape(onCancel)
 
   const sSec = timeToSecs(start)
   const eSec = timeToSecs(end)
   const durSecs = Math.max(0, eSec - sSec)
   const setDurationField = hhmm => {
-    let endS = timeToSecs(start) + timeToSecs(hhmm)
-    if (endS > 86340) endS = 86340
-    setEnd(secsToTime(endS))
+    const dur = timeToSecs(hhmm)
+    // sem horário digitado, o início recua pra duração caber no dia; com horário fixo, corta em 23:59 e avisa
+    const s = editing || timeTouched ? timeToSecs(start) : nextFreeStart(date, dur)
+    setStart(secsToTime(s))
+    setClamped(s + dur > 86340)
+    setEnd(secsToTime(Math.min(86340, s + dur)))
   }
   // nova entrada sem horário digitado: trocar o dia reposiciona no próximo horário livre daquele dia
   const changeDate = d => {
@@ -202,7 +216,7 @@ export function ManualEntryForm({ editing, projects, categories, defaultProjectI
 
   const submit = e => {
     e.preventDefault()
-    if (eSec <= sSec) { setErr('Horário de fim deve ser após o início'); return }
+    if (eSec <= sSec) { setErr(eSec === sSec && !timeTouched ? 'Informe a duração' : 'Horário de fim deve ser após o início'); return }
     onSave({
       id: editing?.id,
       date, desc: desc || 'Sem descrição',
@@ -239,7 +253,7 @@ export function ManualEntryForm({ editing, projects, categories, defaultProjectI
         </div>
         <div className={styles.formGroup}>
           <label className={styles.formLabel}>Duração</label>
-          <TimeField value={secsToTime(durSecs)} onChange={setDurationField} onComplete={() => submitRef.current?.focus()} />
+          <TimeField duration value={secsToTime(durSecs)} onChange={setDurationField} onComplete={() => submitRef.current?.focus()} />
         </div>
       </div>
       <button type="button" className={`${styles.manualMore} ${more ? styles.manualMoreOpen : ''}`} onClick={() => setMore(o => !o)} aria-expanded={more} aria-controls="manual-more">
@@ -267,10 +281,12 @@ export function ManualEntryForm({ editing, projects, categories, defaultProjectI
           </div>
         </div>
       )}
-      {(err || overlap) && (
+      {(err || overlap || clamped) && (
         <div className={styles.manualFeedback}>
           {err ? (
             <span className={styles.formErr}><i className="ti ti-alert-circle" aria-hidden="true" />{err}</span>
+          ) : clamped ? (
+            <span className={styles.formWarn}><i className="ti ti-alert-triangle" aria-hidden="true" />Duração cortada em 23:59 — não cabe no dia a partir das {start}</span>
           ) : (
             <span className={styles.formWarn}><i className="ti ti-alert-triangle" aria-hidden="true" />Sobrepõe outra entrada neste dia</span>
           )}
@@ -288,6 +304,7 @@ export function ManualEntryForm({ editing, projects, categories, defaultProjectI
 
 // ─── Dialog de edição rápida (cola da daily) — Nome + data de conclusão ───────
 export function ColaEditDialog({ item, onSave, onCancel }) {
+  useEscape(onCancel)
   const [title, setTitle] = useState(item.title)
   const [date, setDate] = useState(item.date ?? todayStr())
   const submit = e => {
@@ -327,6 +344,7 @@ const PRIORITY_OPTIONS = [1, 2, 3, 4].map(p => ({ id: p, name: `P${p} · ${PRIOR
 const STATUS_OPTIONS = ['aberta', 'aguardando', 'concluida'].map(s => ({ id: s, name: STATUS_LABELS[s] }))
 
 export function TaskEditDialog({ task, categories, projects, today, onSave, onCancel }) {
+  useEscape(onCancel)
   const [title, setTitle] = useState(task.title)
   const [projectId, setProjectId] = useState(task.projectId)
   const [categoryId, setCategoryId] = useState(task.categoryId ?? null)

@@ -86,6 +86,21 @@ export default function App() {
     undoTimerRef.current = setTimeout(() => setUndoState(null), 4500)
   }
   const [showHelp, setShowHelp] = useState(false)
+  // gravação no localStorage falhou — aviso fica até recarregar
+  const [saveFailed, setSaveFailed] = useState(false)
+  useEffect(() => {
+    const onFail = () => setSaveFailed(true)
+    window.addEventListener('tt:save-failed', onFail)
+    return () => window.removeEventListener('tt:save-failed', onFail)
+  }, [])
+  // aba aberta de um dia pro outro: re-renderiza quando o dia vira (today é derivado a cada render)
+  const [, setDayTick] = useState(todayStr())
+  useEffect(() => {
+    const check = () => setDayTick(todayStr())
+    const id = setInterval(check, 60000)
+    document.addEventListener('visibilitychange', check)
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', check) }
+  }, [])
 
   // ── Timer ──
   const savedTimer = useState(() => loadStorage(KEYS.timer, null))[0]
@@ -149,7 +164,10 @@ export default function App() {
   }
 
   const startTimerFromTask = task => {
-    if (timerActive) { showNotice('Pare o timer atual primeiro'); return }
+    // trocar de tarefa: para o timer atual (salva a entrada) e já inicia o novo
+    const switched = timerActive && timerElapsed >= 1
+    if (timerActive) stopTimer()
+    if (switched) showNotice(`"${timerDesc || 'Sem descrição'}" salvo · iniciando "${task.title}"`)
     const s = Date.now()
     const cat = task.categoryId ?? lastCategoryId
     setTimerDesc(task.title); setTimerProject(task.projectId); setTimerCategory(cat); setTimerKind(ENTRY_KIND_DEFAULT)
@@ -163,7 +181,7 @@ export default function App() {
     const d = new Date(timerStart ?? Date.now())
     d.setHours(h, m, 0, 0)
     let s = d.getTime()
-    if (s > Date.now()) s -= 86400000
+    if (s > Date.now()) { s -= 86400000; showNotice(`${hhmm} ainda não chegou hoje — início ajustado para ontem`) }
     setTimerStart(s); setTimerElapsed(Math.floor((Date.now() - s) / 1000)); persistTimer({ start: s })
   }
 
@@ -682,7 +700,7 @@ export default function App() {
         {/* ── Zona inferior: cola + gerenciadores | entradas ── */}
         <div className={styles.lower}>
           <div className={styles.lowerLeft}>
-            <ColaDaily cola={cola} projects={projects} today={today} timerActive={timerActive} timerTaskId={timerTaskId}
+            <ColaDaily cola={cola} projects={projects} categories={categories} today={today} timerActive={timerActive} timerTaskId={timerTaskId}
               selectedDay={colaDay} onSelectDay={setColaDay} onEditItem={openColaEdit}
               onStartTimer={startTimerFromTask} onStop={stopTimer} onComplete={completeTask} />
             <ProjectsManager projects={projects} open={projectsManagerOpen} onToggle={() => setProjectsManagerOpen(o => !o)}
@@ -828,6 +846,9 @@ export default function App() {
           <span className={styles.undoMsg}><i className="ti ti-trash" aria-hidden="true" />{undoState.label}</span>
           <button className={styles.undoBtn} onClick={handleUndo}>Desfazer</button>
         </div>
+      )}
+      {saveFailed && (
+        <div className={styles.saveFailBanner} role="alert"><i className="ti ti-alert-triangle" aria-hidden="true" />Não foi possível salvar no navegador. Exporte o backup (menu ⋮) antes de recarregar.</div>
       )}
       {notice && (
         <div className={styles.noticeToast} role="status"><i className="ti ti-info-circle" aria-hidden="true" />{notice}</div>

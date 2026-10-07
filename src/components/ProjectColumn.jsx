@@ -56,7 +56,7 @@ function TaskRow({ task, categories, projects, today, timerActive, secsByTask, t
               <i className="ti ti-player-stop" aria-hidden="true" />
             </button>
           ) : task.status !== 'concluida' && (
-            <button className={styles.iconAction} onClick={() => a.startTimer(task)} disabled={timerActive} aria-label="Iniciar timer" title={timerActive ? 'Timer em andamento' : 'Iniciar timer'}>
+            <button className={styles.iconAction} onClick={() => a.startTimer(task)} aria-label="Iniciar timer" title={timerActive ? 'Parar o timer atual e iniciar este' : 'Iniciar timer'}>
               <i className="ti ti-player-play" aria-hidden="true" />
             </button>
           )}
